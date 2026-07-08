@@ -3,216 +3,71 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reporte de Proveedor · 805 MultiServices</title>
+<title>Reporte de Proveedor (lite) · 805 MultiServices</title>
 <style>
-  :root{
-    --navy:#0f2747;
-    --espresso:#0f2747;
-    --brown:#15406b;
-    --caramel:#3a7bd5;
-    --amber:#7fb0e8;
-    --ink:#16222e;
-    --line:#cdd9e7;
-    --line2:#eaf0f8;
-    --sky-bg:#eef4fb;
-    --paper:#ffffff;
-    --green:#157f48;
-    --green-bg:#e8f4ec;
-    --red:#c0392b;
-    --red-bg:#fbece9;
-    --blue:#2c6e9e;
-    --mut:#9aa6b4;
-  }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
-    background:#dde6f1;
-    color:var(--ink);
-    font-family:"Segoe UI",Roboto,system-ui,-apple-system,Arial,sans-serif;
-    font-size:12px;
-    -webkit-print-color-adjust:exact;
-    print-color-adjust:exact;
+    background:#fff;
+    color:#000;
+    font-family:"Courier New",Consolas,monospace;
+    font-size:11px;
+    line-height:1.3;
   }
   .sheet{
     width:100%;
     max-width:8.5in;
-    min-height:11in;
-    margin:14px auto;
-    background:var(--paper);
-    padding:0.34in 0.36in 0.4in;
-    box-shadow:0 4px 22px rgba(0,0,0,.18);
+    margin:0 auto;
+    padding:0.35in;
   }
-  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
-  /* ---------- ENCABEZADO ---------- */
-  .range{
-    text-align:right;
-    font-weight:800;
-    font-size:17px;
-    letter-spacing:.5px;
-    color:var(--espresso);
-    margin:0 0 8px;
+  h1{font-size:14px;margin:0 0 2px;text-transform:uppercase;letter-spacing:.5px}
+  .sub{font-size:11px;margin:0 0 10px}
+  .totals{margin:0 0 14px;border-top:1px solid #000;border-bottom:1px solid #000;padding:4px 0}
+  .totals div{display:flex;justify-content:space-between}
+  .sec{margin-bottom:14px;break-inside:avoid}
+  .sec h2{
+    font-size:12px;margin:0;padding:2px 0;
+    border-bottom:1px solid #000;text-transform:uppercase;
   }
-  .range b{color:var(--caramel)}
-  .head{
-    display:flex;
-    align-items:stretch;
-    gap:12px;
-    border:1.5px solid var(--espresso);
-    border-radius:8px;
-    overflow:hidden;
-  }
-  .brand{
-    background:#fff;
-    color:var(--navy);
-    display:flex;
-    align-items:center;
-    gap:11px;
-    padding:10px 14px;
-    min-width:200px;
-    border-right:1px solid var(--line);
-  }
-  .brand .logo{
-    width:52px;height:52px;border-radius:50%;
-    object-fit:cover;background:#eef4fb;
-    border:2px solid var(--navy);flex:0 0 auto;
-    display:flex;align-items:center;justify-content:center;
-    font-weight:900;color:var(--navy);font-size:19px;
-  }
-  .brand .who{line-height:1.18}
-  .brand .co{font-weight:800;font-size:17px;color:var(--navy)}
-  .brand .emp{font-size:11px;color:#5a6675;margin-top:2px}
-  .provbadge{
-    display:inline-block;margin-top:3px;
-    background:var(--navy);color:#fff;
-    font-weight:800;font-size:11.5px;letter-spacing:.4px;
-    padding:2px 9px;border-radius:11px;text-transform:uppercase;
-  }
-  .kpis{
-    flex:1;
-    display:grid;
-    grid-template-columns:repeat(5,1fr);
-    gap:0 10px;
-    padding:8px 14px;
-    align-content:center;
-  }
-  .kpi{display:flex;flex-direction:column;align-items:flex-start;
-       padding:2.5px 8px;border-left:1px solid var(--line2)}
-  .kpi:first-child{border-left:none}
-  .kpi .l{font-weight:800;color:#41546a;font-size:9.5px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
-  .kpi .v{font-weight:800;font-size:14px;margin-top:2px}
-  .kpi.ventas .v{color:var(--green)}
-  .kpi.salidas .v{color:var(--red)}
-  .kpi.cheques .v{color:var(--blue)}
-  .kpi.canc .v{color:var(--red)}
-  .kpi.pagos .v{color:var(--brown)}
-  /* ---------- BLOQUES POR CATEGORÍA ---------- */
-  .catbox{
-    border:1px solid var(--line);border-radius:7px;overflow:hidden;
-    margin-top:10px;break-inside:avoid;
-  }
-  .catbox .catbar{
-    display:flex;justify-content:space-between;align-items:baseline;
-    padding:6px 10px;background:#fff;border-bottom:2px solid var(--navy);
-  }
-  .catbox .catbar h4{
-    margin:0;font-size:12px;letter-spacing:.5px;text-transform:uppercase;
-    font-weight:800;color:var(--navy);
-  }
-  .catbox .catbar .n{font-size:10px;color:var(--mut);font-weight:700;margin-left:6px}
-  .catbox .catbar .tot{font-size:15px;font-weight:800;color:var(--brown)}
-  table{width:100%;border-collapse:collapse;table-layout:fixed}
-  thead th{
-    background:#f1f6fc;color:var(--navy);font-size:9px;
-    letter-spacing:.2px;text-transform:uppercase;font-weight:800;
-    padding:3px 5px;text-align:left;
-    border:1px solid var(--line);white-space:nowrap;
-  }
-  thead th.r,tbody td.r{text-align:right;white-space:nowrap}
-  tbody td{
-    padding:2px 5px;border:1px solid var(--line);
-    vertical-align:top;font-size:10px;line-height:1.15;
-    overflow-wrap:break-word;word-break:break-word;
-  }
-  tbody td.r{overflow-wrap:normal;word-break:keep-all;white-space:nowrap;vertical-align:middle}
-  tbody tr:nth-child(even){background:var(--sky-bg)}
-  .dt{font-variant-numeric:tabular-nums;font-size:9.5px;font-weight:600;line-height:1.05}
-  .hr{font-variant-numeric:tabular-nums;font-size:8.5px;color:#5a6675;line-height:1.05}
-  .serv{font-weight:800;color:var(--blue);text-transform:uppercase;font-size:9.5px;line-height:1.08}
-  .cli{font-weight:700;line-height:1.08}
-  .pay{font-size:10.5px;font-weight:700;color:#41546a;text-transform:uppercase;line-height:1.05;
-       display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .obsx{display:block;font-weight:400;color:#6a7686;font-size:9px;line-height:1.05;margin-top:1px}
-  td.r{font-variant-numeric:tabular-nums;font-weight:700;font-size:12px;color:var(--ink)}
-  .empty{text-align:center;color:var(--mut);padding:12px}
-  /* ---------- BOTÓN ---------- */
+  .sec .cnt{font-weight:normal;font-size:10px}
+  table{width:100%;border-collapse:collapse;margin-top:2px}
+  th,td{padding:1px 3px;text-align:left;vertical-align:top;border-bottom:1px dotted #999}
+  th{font-weight:bold;border-bottom:1px solid #000}
+  td.r,th.r{text-align:right;white-space:nowrap}
+  .empty{padding:4px 0;font-style:italic}
   .print-btn{
-    position:fixed;right:18px;bottom:18px;z-index:9;
-    background:var(--brown);color:#fff;border:none;border-radius:24px;
-    padding:11px 20px;font-size:13px;font-weight:700;cursor:pointer;
-    box-shadow:0 4px 14px rgba(0,0,0,.25);
+    position:fixed;right:14px;bottom:14px;
+    background:#000;color:#fff;border:none;border-radius:4px;
+    padding:8px 14px;font-size:12px;cursor:pointer;
   }
-  .print-btn:hover{background:var(--espresso)}
-  /* ---------- IMPRESIÓN ---------- */
-  @page{size:letter portrait;margin:0.3in}
+  @page{size:letter portrait;margin:0.35in}
   @media print{
-    body{background:#fff}
-    .sheet{margin:0;box-shadow:none;width:100%;min-height:auto;padding:0}
-    table{width:100%}
     .print-btn{display:none}
     thead{display:table-header-group}
     tr{break-inside:avoid}
-    .catbox{break-inside:avoid}
+    .sec{break-inside:avoid}
   }
 </style>
 </head>
 <body>
 <div class="sheet" id="sheet"></div>
-<button class="print-btn" onclick="window.print()">🖨 Imprimir</button>
+<button class="print-btn" onclick="window.print()">Imprimir / PDF</button>
 <script>
-/* =====================================================================
-   CONTRATO DE DATOS  ·  URL:  reporte_proveedor.html#d=<payload>
-   payload = HEADER || VENTAS || SALIDAS || CHEQUES || CANCELACIONES || PAGOS
-   - separador de secciones: ||  (doble pipe)
-   - separador entre filas de una sección: ~~  (doble tilde)
-   - separador de campos: ^
-
-   HEADER (10 campos):
-     0 proveedor   1 fechaInicial   2 fechaFinal   3 logoURL
-     4 totalVentas 5 totalSalidas   6 totalCheques 7 totalCancelaciones
-     8 totalPagos  9 generadoPor
-
-   VENTAS / SALIDAS / CHEQUES / CANCELACIONES  → filas de 7 campos (vienen de DetalleOrden):
-     0 fecha  1 hora  2 cliente  3 servicio  4 formaPago  5 monto  6 observacion
-
-   PAGOS  → filas de 5 campos (vienen de la tabla Pagos):
-     0 fecha  1 referencia  2 monto  3 formaPago  4 observacion
-   ===================================================================== */
+/* Mismo contrato de datos que reporte_proveedor.html (compatible con la misma Action de AppSheet):
+   #d=HEADER||VENTAS||SALIDAS||CHEQUES||CANCELACIONES||PAGOS
+   sec sep: ||   fila sep: ~~   campo sep: ^
+   HEADER: 0 proveedor 1 fechaIni 2 fechaFin 3 logoURL(ignorado) 4 totVentas 5 totSalidas 6 totCheques 7 totCanc 8 totPagos 9 generadoPor
+   VENTAS/SALIDAS/CHEQUES/CANC: 0 fecha 1 hora 2 cliente 3 servicio 4 formaPago 5 monto 6 observacion
+   PAGOS: 0 fecha 1 referencia 2 monto 3 formaPago 4 observacion */
 const SEC='||', REC='~~', F='^';
 
-/* ---- datos de muestra (se ven si abres el HTML sin #d=) ---- */
 const DEMO_H = ["VIAMERICAS","26/4/2026","6/6/2026","","5240.00","1612.00","300.00","190.00","4950.00","805 MultiServices"];
-const DEMO_VENTAS = [
-  ["6/26/2026","12:37:04 PM","NAYELI YERALDI SAUCEDA GUERRERO","ENVIO/BILL","💵 EFECTIVO","1757",""],
-  ["6/24/2026","10:12:02 AM","MARCELINO PABLO ISAAC","ENVIO/BILL","💵 EFECTIVO","920",""],
-  ["6/20/2026","3:41:19 PM","CARLOS HUMBERTO RIVAS PINEDA","ENVIO/BILL","🏢 PAGO DIRECTO A COMPAÑIA","2563",""]
-];
-const DEMO_SALIDAS = [
-  ["7/7/2026","19:54:10","RAFAEL GONZALEZ CHAVEZ","CHEQUE","💵 EFECTIVO","151",""],
-  ["6/29/2026","2:10:44 PM","BRENDALIN HERNANDEZ MARTINEZ","OTRA SALIDA","💵 EFECTIVO","1461","reembolso"]
-];
-const DEMO_CHEQUES = [
-  ["7/7/2026","19:54:10","RAFAEL GONZALEZ CHAVEZ","CHEQUE","💵 EFECTIVO","151.07",""],
-  ["6/18/2026","11:02:00 AM","MANUEL DE JESUS VILLARREAL","CHEQUE","💵 EFECTIVO","148.93",""]
-];
-const DEMO_CANC = [
-  ["6/22/2026","4:15:00 PM","CELSO SANTIAGO APOLINAR","CANCELACION / PAYOUT","💵 EFECTIVO","190","cancelacion de cita"]
-];
-const DEMO_PAGOS = [
-  ["26/4/2026","PAGO-000123","2450.00","🏦 TRANSFERENCIA",""],
-  ["6/6/2026","PAGO-000159","2500.00","🏦 TRANSFERENCIA",""]
-];
+const DEMO_VENTAS=[["6/26/2026","12:37 PM","NAYELI SAUCEDA GUERRERO","ENVIO/BILL","EFECTIVO","1757",""]];
+const DEMO_SALIDAS=[["7/7/2026","19:54","RAFAEL GONZALEZ CHAVEZ","CHEQUE","EFECTIVO","151",""]];
+const DEMO_CHEQUES=[["7/7/2026","19:54","RAFAEL GONZALEZ CHAVEZ","CHEQUE","EFECTIVO","151.07",""]];
+const DEMO_CANC=[["6/22/2026","4:15 PM","CELSO SANTIAGO APOLINAR","CANCELACION / PAYOUT","EFECTIVO","190","cancelacion"]];
+const DEMO_PAGOS=[["26/4/2026","PAGO-000123","2450.00","TRANSFERENCIA",""]];
 
-/* ---------------- parseo de la URL ---------------- */
 function smartDecode(raw){
   let s=raw;
   try{ s=decodeURIComponent(raw); }catch(e){ s=raw; }
@@ -221,7 +76,7 @@ function smartDecode(raw){
   }
   return s;
 }
-function splitRows(sectionStr, nFields){
+function splitRows(sectionStr){
   const t=(sectionStr||"").trim();
   if(!t) return [];
   return t.split(REC).map(s=>s.trim()).filter(s=>s!=="").map(r=>r.split(F));
@@ -244,7 +99,6 @@ function readPayload(){
     PAGOS: splitRows(parts[5])
   };
 }
-/* ---------------- helpers ---------------- */
 function toNum(v){
   if(v===undefined||v===null) return 0;
   const n=parseFloat((""+v).replace(/[^0-9.\-]/g,""));
@@ -252,116 +106,71 @@ function toNum(v){
 }
 function money(v){return "$"+toNum(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});}
 function esc(s){return (s==null?"":""+s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
-function payFmt(s){
-  const raw=""+(s||""); const t=raw.toUpperCase();
-  if(!t.trim()) return "";
-  const em=(raw.match(/^[^\x00-\x7F]+/)||[""])[0];
-  let code;
-  if(/EFECT/.test(t))             code="EFECT";
-  else if(/DIRECT|COMPA/.test(t)) code="P. DIRE";
-  else if(/CARD/.test(t))         code="CARD";
-  else if(/DEBE/.test(t))         code="DEBE";
-  else if(/ZELLE/.test(t))        code="ZELLE";
-  else if(/CHEQ/.test(t))         code="CHEQ";
-  else if(/TRANSF/.test(t))       code="TRANSF";
-  else code=Array.from(raw.replace(/^[^\x00-\x7F]+\s*/,"")).slice(0,7).join("").toUpperCase();
-  return em+code;
-}
-const MESES={ene:"ENERO",jan:"ENERO",feb:"FEBRERO",mar:"MARZO",abr:"ABRIL",apr:"ABRIL",
-  may:"MAYO",jun:"JUNIO",jul:"JULIO",ago:"AGOSTO",aug:"AGOSTO",sep:"SEPTIEMBRE",set:"SEPTIEMBRE",
-  oct:"OCTUBRE",nov:"NOVIEMBRE",dic:"DICIEMBRE",dec:"DICIEMBRE"};
-function fechaFull(s){
-  s=(""+(s||"")).trim();
-  if(!s) return "";
-  return s.replace(/[A-Za-zÁ-úÑñ]{3,}\.?/, m=>{
-    const k=m.slice(0,3).toLowerCase();
-    return MESES[k]||m.toUpperCase();
-  }).toUpperCase();
-}
-/* ---------------- tabla genérica tipo A (Ventas/Salidas/Cheques/Cancelaciones) ---------------- */
+
 function tablaTipoA(rows){
   if(!rows.length) return `<div class="empty">Sin movimientos</div>`;
-  const trs = rows.map(r=>`<tr>
-      <td><div class="dt">${esc(r[0]||'')}</div><div class="hr">${esc(r[1]||'')}</div></td>
-      <td class="cli">${esc(r[2]||'')}</td>
-      <td><div class="serv">${esc(r[3]||'')}</div></td>
-      <td><div class="pay">${esc(payFmt(r[4]))}</div></td>
-      <td class="r num">${money(r[5])}${(r[6]&&(""+r[6]).trim())?`<span class="obsx">(${esc(r[6])})</span>`:''}</td>
-    </tr>`).join("");
+  const trs=rows.map(r=>`<tr>
+    <td>${esc(r[0]||'')} ${esc(r[1]||'')}</td>
+    <td>${esc(r[2]||'')}</td>
+    <td>${esc(r[3]||'')}</td>
+    <td>${esc(r[4]||'')}</td>
+    <td class="r">${money(r[5])}</td>
+    <td>${esc(r[6]||'')}</td>
+  </tr>`).join("");
   return `<table>
-    <colgroup><col style="width:14%"><col style="width:30%"><col style="width:24%"><col style="width:16%"><col style="width:16%"></colgroup>
-    <thead><tr><th>Fecha/H</th><th>Cliente</th><th>Servicio</th><th>F. Pago</th><th class="r">Monto</th></tr></thead>
+    <thead><tr><th>Fecha/Hora</th><th>Cliente</th><th>Servicio</th><th>F.Pago</th><th class="r">Monto</th><th>Obs.</th></tr></thead>
     <tbody>${trs}</tbody>
   </table>`;
 }
-/* ---------------- tabla tipo B (Pagos) ---------------- */
 function tablaPagos(rows){
   if(!rows.length) return `<div class="empty">Sin pagos registrados</div>`;
-  const trs = rows.map(r=>`<tr>
-      <td><div class="dt">${esc(r[0]||'')}</div></td>
-      <td class="cli">${esc(r[1]||'')}</td>
-      <td><div class="pay">${esc(payFmt(r[3]))}</div></td>
-      <td class="r num">${money(r[2])}${(r[4]&&(""+r[4]).trim())?`<span class="obsx">(${esc(r[4])})</span>`:''}</td>
-    </tr>`).join("");
+  const trs=rows.map(r=>`<tr>
+    <td>${esc(r[0]||'')}</td>
+    <td>${esc(r[1]||'')}</td>
+    <td>${esc(r[3]||'')}</td>
+    <td class="r">${money(r[2])}</td>
+    <td>${esc(r[4]||'')}</td>
+  </tr>`).join("");
   return `<table>
-    <colgroup><col style="width:16%"><col style="width:34%"><col style="width:22%"><col style="width:28%"></colgroup>
-    <thead><tr><th>Fecha</th><th>Referencia</th><th>F. Pago</th><th class="r">Monto</th></tr></thead>
+    <thead><tr><th>Fecha</th><th>Referencia</th><th>F.Pago</th><th class="r">Monto</th><th>Obs.</th></tr></thead>
     <tbody>${trs}</tbody>
   </table>`;
 }
-/* ---------------- render ---------------- */
 function render(P){
   const H=P.H, g=i=>H[i]!==undefined?H[i]:"";
-  const logo = g(3)
-    ? `<img class="logo" src="${esc(g(3))}" alt="">`
-    : `<div class="logo">805</div>`;
   document.getElementById("sheet").innerHTML=`
-  <div class="range">${esc(fechaFull(g(1)))} &nbsp;<b>a</b>&nbsp; ${esc(fechaFull(g(2)))}</div>
-  <div class="head">
-    <div class="brand">
-      ${logo}
-      <div class="who">
-        <div class="co">805 MultiServices</div>
-        <div class="emp">${esc(g(9)||'Reporte de proveedor')}</div>
-        <div class="provbadge">${esc(g(0)||'PROVEEDOR')}</div>
-      </div>
-    </div>
-    <div class="kpis">
-      <div class="kpi ventas"><span class="l">Ventas</span><span class="v num">${money(g(4))}</span></div>
-      <div class="kpi salidas"><span class="l">Salidas</span><span class="v num">${money(g(5))}</span></div>
-      <div class="kpi cheques"><span class="l">Cheques</span><span class="v num">${money(g(6))}</span></div>
-      <div class="kpi canc"><span class="l">Cancelaciones</span><span class="v num">${money(g(7))}</span></div>
-      <div class="kpi pagos"><span class="l">Pagos Realizados</span><span class="v num">${money(g(8))}</span></div>
-    </div>
+  <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(g(1))} a ${esc(g(2))} &middot; Generado por: ${esc(g(9)||'-')}</div>
+  <div class="totals">
+    <div><span>Ventas</span><span>${money(g(4))}</span></div>
+    <div><span>Salidas</span><span>${money(g(5))}</span></div>
+    <div><span>Cheques</span><span>${money(g(6))}</span></div>
+    <div><span>Cancelaciones</span><span>${money(g(7))}</span></div>
+    <div><span>Pagos realizados</span><span>${money(g(8))}</span></div>
   </div>
 
-  <div class="catbox">
-    <div class="catbar"><h4>Ventas<span class="n">${P.VENTAS.length} mov.</span></h4><span class="tot num">${money(g(4))}</span></div>
+  <div class="sec">
+    <h2>Ventas <span class="cnt">(${P.VENTAS.length} mov. &middot; ${money(g(4))})</span></h2>
     ${tablaTipoA(P.VENTAS)}
   </div>
-
-  <div class="catbox">
-    <div class="catbar"><h4>Salidas<span class="n">${P.SALIDAS.length} mov.</span></h4><span class="tot num">${money(g(5))}</span></div>
+  <div class="sec">
+    <h2>Salidas <span class="cnt">(${P.SALIDAS.length} mov. &middot; ${money(g(5))})</span></h2>
     ${tablaTipoA(P.SALIDAS)}
   </div>
-
-  <div class="catbox">
-    <div class="catbar"><h4>Cheques<span class="n">${P.CHEQUES.length} mov.</span></h4><span class="tot num">${money(g(6))}</span></div>
+  <div class="sec">
+    <h2>Cheques <span class="cnt">(${P.CHEQUES.length} mov. &middot; ${money(g(6))})</span></h2>
     ${tablaTipoA(P.CHEQUES)}
   </div>
-
-  <div class="catbox">
-    <div class="catbar"><h4>Cancelaciones<span class="n">${P.CANC.length} mov.</span></h4><span class="tot num">${money(g(7))}</span></div>
+  <div class="sec">
+    <h2>Cancelaciones <span class="cnt">(${P.CANC.length} mov. &middot; ${money(g(7))})</span></h2>
     ${tablaTipoA(P.CANC)}
   </div>
-
-  <div class="catbox">
-    <div class="catbar"><h4>Pagos Realizados<span class="n">${P.PAGOS.length} mov.</span></h4><span class="tot num">${money(g(8))}</span></div>
+  <div class="sec">
+    <h2>Pagos realizados <span class="cnt">(${P.PAGOS.length} mov. &middot; ${money(g(8))})</span></h2>
     ${tablaPagos(P.PAGOS)}
   </div>
   `;
 }
-/* ---------------- arranque ---------------- */
 (function(){
   const p=readPayload();
   if(p){ render(p); }
