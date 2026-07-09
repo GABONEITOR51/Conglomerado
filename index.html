@@ -27,7 +27,7 @@
   .totals div span:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
   .totals div.sub2row span:first-child{padding-left:14px;font-size:10px}
   .totals div.sub2row span:last-child{font-size:10px}
-  .totals div.grp{border-top:1px dotted #999}
+  .totals div.grptot span{font-weight:bold}
   .sec{margin-bottom:14px;break-inside:avoid}
   .sec h2{
     font-size:12px;margin:0;padding:2px 0;
@@ -80,11 +80,15 @@ const SEC='||', REC='~~', F='^';
 const DEMO_H = ["VIAMERICAS","26/4/2026","6/6/2026","","5240.00","1612.00","300.00","190.00","4950.00","805 MultiServices"];
 const DEMO_VENTAS=[
   ["6/26/2026","12:37 PM","NAYELI SAUCEDA GUERRERO","ENVIO/","EFECTIVO","1757","","Money Transfer"],
-  ["6/27/2026","1:10 PM","JUAN PEREZ LOPEZ","BILL","TARJETA","243","","Bill Paymnt"]
+  ["6/27/2026","1:10 PM","JUAN PEREZ LOPEZ","BILL","TARJETA","243","","Bill Paymnt"],
+  ["6/28/2026","9:20 AM","MARIA LOPEZ CRUZ","ENVIO/","CLIENTE DIRECTO A COMPANIA","900","","Money Transfer"]
 ];
 const DEMO_SALIDAS=[["7/7/2026","19:54","RAFAEL GONZALEZ CHAVEZ","CHEQUE","EFECTIVO","151",""]];
 const DEMO_CHEQUES=[["7/7/2026","19:54","RAFAEL GONZALEZ CHAVEZ","CHEQUE","EFECTIVO","151.07",""]];
-const DEMO_CANC=[["6/22/2026","4:15 PM","CELSO SANTIAGO APOLINAR","CANCELACION / PAYOUT","EFECTIVO","190","cancelacion"]];
+const DEMO_CANC=[
+  ["6/22/2026","4:15 PM","CELSO SANTIAGO APOLINAR","CANCELACION / PAYOUT","EFECTIVO","190","cancelacion"],
+  ["6/23/2026","5:30 PM","ROSA MARTINEZ DIAZ","CANCELACION","TARJETA","310","reembolso"]
+];
 const DEMO_PAGOS=[["26/4/2026","PAGO-000123","2450.00","TRANSFERENCIA",""]];
 function smartDecode(raw){
   let s=raw;
@@ -165,12 +169,22 @@ function tablaTipoA(rows){
     <tbody>${trs}</tbody>
   </table>`;
 }
-/* Clasifica una fila de Ventas por [TipoEnvio] (indice 7): Money Transfer / Bill Paymnt */
+/* Clasifica una fila de Ventas.
+   PRIORIDAD 1: forma de pago "cliente directo a compania" -> credito
+   (pago directo del cliente en la terminal del proveedor).
+   Luego por [TipoEnvio] (indice 7): Money Transfer / Bill Paymnt. */
 function ventaTipo(r){
+  const fp=(r[4]==null?'':(''+r[4])).toLowerCase();
+  if(/cliente\s*directo|directo a compa/.test(fp)) return 'credito';
   const t=(r[7]==null?'':(''+r[7])).toLowerCase();
   if(/bill/.test(t)) return 'bill';
   if(/money|transfer|env[ií]o/.test(t)) return 'envio';
   return t.trim()==='' ? '' : 'otro';
+}
+/* Clasifica una Cancelacion: forma de pago con tarjeta -> "Debito por cancelacion de tarjeta" */
+function cancTipo(r){
+  const fp=(r[4]==null?'':(''+r[4])).toLowerCase();
+  return /tarjeta/.test(fp) ? 'tarjeta' : 'otra';
 }
 /* Sub-bloque titulado con contador y subtotal (para separar Ventas) */
 function subBloque(titulo,rows){
@@ -179,12 +193,24 @@ function subBloque(titulo,rows){
 /* Divide Ventas en Envios (Money Transfer) vs Pago de biles (Bill Payment).
    Si aun no llega el campo TipoEnvio en el payload, muestra la tabla unica (compatibilidad). */
 function ventasBloques(rows){
-  const env=rows.filter(r=>ventaTipo(r)==='envio');
-  const bil=rows.filter(r=>ventaTipo(r)==='bill');
-  const otr=rows.filter(r=>{const k=ventaTipo(r);return k!=='envio'&&k!=='bill';});
-  if(env.length===0 && bil.length===0) return tablaTipoA(rows);
+  const env =rows.filter(r=>ventaTipo(r)==='envio');
+  const bil =rows.filter(r=>ventaTipo(r)==='bill');
+  const cred=rows.filter(r=>ventaTipo(r)==='credito');
+  const otr =rows.filter(r=>{const k=ventaTipo(r);return k!=='envio'&&k!=='bill'&&k!=='credito';});
+  if(env.length===0 && bil.length===0 && cred.length===0) return tablaTipoA(rows);
   let html=subBloque('Envios (Money Transfer)',env)+subBloque('Pago de biles (Bill Payment)',bil);
-  if(otr.length) html+=subBloque('Otros / sin clasificar',otr);
+  if(cred.length) html+=subBloque('Creditos (cliente directo a compania)',cred);
+  if(otr.length)  html+=subBloque('Otros / sin clasificar',otr);
+  return html;
+}
+/* Divide Cancelaciones: Debito por cancelacion de tarjeta vs efectivo/otras.
+   Si no hay canceladas con tarjeta, muestra tabla unica. */
+function cancBloques(rows){
+  const tar=rows.filter(r=>cancTipo(r)==='tarjeta');
+  const otr=rows.filter(r=>cancTipo(r)==='otra');
+  if(tar.length===0) return tablaTipoA(rows);
+  let html=subBloque('Debito por cancelacion de tarjeta',tar);
+  if(otr.length) html+=subBloque('Cancelaciones (efectivo / otras)',otr);
   return html;
 }
 function tablaPagos(rows){
@@ -220,25 +246,33 @@ function render(P){
   /* Totales reales calculados desde los movimientos (fix de encabezado) */
   const T={
     ventas:  sumRows(P.VENTAS,5),
-    ventasEnv: sumRows(P.VENTAS.filter(r=>ventaTipo(r)==='envio'),5),
-    ventasBil: sumRows(P.VENTAS.filter(r=>ventaTipo(r)==='bill'),5),
+    ventasEnv:  sumRows(P.VENTAS.filter(r=>ventaTipo(r)==='envio'),5),
+    ventasBil:  sumRows(P.VENTAS.filter(r=>ventaTipo(r)==='bill'),5),
+    ventasCred: sumRows(P.VENTAS.filter(r=>ventaTipo(r)==='credito'),5),
     salidas: sumRows(P.SALIDAS,5),
     cheques: sumRows(P.CHEQUES,5),
     canc:    sumRows(P.CANC,5),
+    cancTar: sumRows(P.CANC.filter(r=>cancTipo(r)==='tarjeta'),5),
+    cancOtra:sumRows(P.CANC.filter(r=>cancTipo(r)==='otra'),5),
     pagos:   sumRows(P.PAGOS,2)
   };
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v9</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v11</div>
   <div class="totals">
+    <div class="grptot"><span>Ventas (total)</span><span>${money(T.ventas)}</span></div>
     <div class="sub2row"><span>Ventas &middot; Envios (Money Transfer)</span><span>${money(T.ventasEnv)}</span></div>
     <div class="sub2row"><span>Ventas &middot; Pago de biles (Bill Payment)</span><span>${money(T.ventasBil)}</span></div>
-    <div class="grp"><span>Ventas (total)</span><span>${money(T.ventas)}</span></div>
+    ${T.ventasCred>0 ? `<div class="sub2row"><span>Ventas &middot; Creditos (cliente directo)</span><span>${money(T.ventasCred)}</span></div>` : ``}
     <div><span>Salidas</span><span>${money(T.salidas)}</span></div>
     <div><span>Cheques</span><span>${money(T.cheques)}</span></div>
-    <div><span>Cancelaciones</span><span>${money(T.canc)}</span></div>
-    <div><span>Pagos realizados</span><span>${money(T.pagos)}</span></div>
+    ${T.cancTar>0 ? `
+    <div class="grptot"><span>Cancelaciones (total)</span><span>${money(T.canc)}</span></div>
+    <div class="sub2row"><span>Debito por cancelacion de tarjeta</span><span>${money(T.cancTar)}</span></div>
+    <div class="sub2row"><span>Cancelaciones (efectivo / otras)</span><span>${money(T.cancOtra)}</span></div>`
+    : `<div><span>Cancelaciones</span><span>${money(T.canc)}</span></div>`}
+    <div><span>Pagos realizados a proveedor (total)</span><span>${money(T.pagos)}</span></div>
   </div>
   <div class="sec">
     <h2><span>Salidas <span class="cnt">(${P.SALIDAS.length} mov.)</span></span><span class="tot">${money(T.salidas)}</span></h2>
@@ -246,7 +280,7 @@ function render(P){
   </div>
   <div class="sec">
     <h2><span>Cancelaciones <span class="cnt">(${P.CANC.length} mov.)</span></span><span class="tot">${money(T.canc)}</span></h2>
-    ${tablaTipoA(P.CANC)}
+    ${cancBloques(P.CANC)}
   </div>
   <div class="sec">
     <h2><span>Cheques <span class="cnt">(${P.CHEQUES.length} mov.)</span></span><span class="tot">${money(T.cheques)}</span></h2>
