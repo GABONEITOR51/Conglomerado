@@ -136,8 +136,21 @@ function tablaPagos(rows){
     <tbody>${trs}</tbody>
   </table>`;
 }
+function pad2(n){n=parseInt(n,10)||0; return (n<10?'0':'')+n;}
+function fileDate(s){
+  s=(""+(s||'')).trim();
+  const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(!m) return s.replace(/[^\w-]/g,'');
+  return pad2(m[1])+'-'+pad2(m[2])+'-'+m[3];
+}
+function fileProv(s){
+  s=(""+(s||'')).trim();
+  const t=s.replace(/[^A-Za-zÀ-ÿ]/g,'').slice(0,3);
+  return t.charAt(0).toUpperCase()+t.slice(1).toLowerCase();
+}
 function render(P){
   const H=P.H, g=i=>H[i]!==undefined?H[i]:"";
+  document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
   <div class="sub">805 MultiServices &middot; Periodo: ${esc(g(1))} a ${esc(g(2))} &middot; Generado por: ${esc(g(9)||'-')}</div>
@@ -150,24 +163,24 @@ function render(P){
   </div>
 
   <div class="sec">
-    <h2>Ventas <span class="cnt">(${P.VENTAS.length} mov. &middot; ${money(g(4))})</span></h2>
-    ${tablaTipoA(P.VENTAS)}
-  </div>
-  <div class="sec">
     <h2>Salidas <span class="cnt">(${P.SALIDAS.length} mov. &middot; ${money(g(5))})</span></h2>
     ${tablaTipoA(P.SALIDAS)}
-  </div>
-  <div class="sec">
-    <h2>Cheques <span class="cnt">(${P.CHEQUES.length} mov. &middot; ${money(g(6))})</span></h2>
-    ${tablaTipoA(P.CHEQUES)}
   </div>
   <div class="sec">
     <h2>Cancelaciones <span class="cnt">(${P.CANC.length} mov. &middot; ${money(g(7))})</span></h2>
     ${tablaTipoA(P.CANC)}
   </div>
   <div class="sec">
-    <h2>Pagos realizados <span class="cnt">(${P.PAGOS.length} mov. &middot; ${money(g(8))})</span></h2>
+    <h2>Cheques <span class="cnt">(${P.CHEQUES.length} mov. &middot; ${money(g(6))})</span></h2>
+    ${tablaTipoA(P.CHEQUES)}
+  </div>
+  <div class="sec">
+    <h2>Depositos (Pagos realizados) <span class="cnt">(${P.PAGOS.length} mov. &middot; ${money(g(8))})</span></h2>
     ${tablaPagos(P.PAGOS)}
+  </div>
+  <div class="sec">
+    <h2>Ventas <span class="cnt">(${P.VENTAS.length} mov. &middot; ${money(g(4))})</span></h2>
+    ${tablaTipoA(P.VENTAS)}
   </div>
   `;
 }
