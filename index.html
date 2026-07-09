@@ -22,12 +22,19 @@
   }
   h1{font-size:14px;margin:0 0 2px;text-transform:uppercase;letter-spacing:.5px}
   .sub{font-size:11px;margin:0 0 10px}
-  .totals{margin:0 0 14px;border-top:1px solid #000;border-bottom:1px solid #000;padding:4px 0}
-  .totals div{display:grid;grid-template-columns:1fr 110px;column-gap:12px;padding:1px 0}
-  .totals div span:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .totals div.sub2row span:first-child{padding-left:14px;font-size:10px}
-  .totals div.sub2row span:last-child{font-size:10px}
-  .totals div.grptot span{font-weight:bold}
+  .groups{margin:0 0 14px}
+  .grupo{border:1.5px solid #000;margin-bottom:7px;break-inside:avoid}
+  .grupo .ghdr{display:flex;justify-content:space-between;align-items:baseline;
+    background:#e6e6e6;padding:3px 6px;font-weight:bold;font-size:12px;
+    text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid #000;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .grupo .ghdr .gt{font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:10px}
+  .grupo .grow{display:grid;grid-template-columns:1fr 120px;column-gap:12px;padding:1px 6px}
+  .grupo .grow span:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .grupo .grow.l1 span:first-child{padding-left:10px}
+  .grupo .grow.l2 span:first-child{padding-left:24px;font-size:10px}
+  .grupo .grow.l2 span:last-child{font-size:10px}
+  .leyenda{font-size:9px;font-style:italic;line-height:1.25;margin-top:1px}
   .sec{margin-bottom:14px;break-inside:avoid}
   .sec h2{
     font-size:12px;margin:0;padding:2px 0;
@@ -74,6 +81,19 @@
    HEADER: 0 proveedor 1 fechaIni 2 fechaFin 3 logoURL(ignorado) 4 totVentas 5 totSalidas 6 totCheques 7 totCanc 8 totPagos 9 generadoPor
    VENTAS/SALIDAS/CHEQUES/CANC: 0 fecha 1 hora 2 cliente 3 servicio 4 formaPago 5 monto 6 observacion
    PAGOS: 0 fecha 1 referencia 2 monto 3 formaPago 4 observacion
+
+   MAPEO CON EL STATEMENT DE VIAMERICAS (seccion Balance) -- para referencia contable:
+     ENTRADAS (+, suman al saldo):
+       Ventas . Envios (Money Transfer)  = "Money Transfers"
+       Ventas . Pago de biles            = "Bill Payment" (Other services)
+       Ventas . Creditos                 = venta pagada por el cliente directo con tarjeta
+                                           (cuenta como venta y ademas se descuenta como "Credits")
+     ABONOS / LIQUIDACIONES (-, reducen el saldo a depositar, NO son ingresos):
+       Cheques acreditados = "Credited Checks"  (confirmado por el usuario)
+       Cancelaciones       ~ "Money Transfers - Canceled"
+       Pagos / Depositos   = "Deposits / ViaSafe"
+     Formula VIA: Balance inicial + Money Transfers + Other services + Debits
+                  - Credited checks - Deposits/ViaSafe - Credits = Total a depositar
    NOTA v2: los totales del encabezado se recalculan en JS a partir de los movimientos reales
             (ya no se confia en los valores 4/5/6/7/8 del HEADER de AppSheet). */
 const SEC='||', REC='~~', F='^';
@@ -259,20 +279,26 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v11</div>
-  <div class="totals">
-    <div class="grptot"><span>Ventas (total)</span><span>${money(T.ventas)}</span></div>
-    <div class="sub2row"><span>Ventas &middot; Envios (Money Transfer)</span><span>${money(T.ventasEnv)}</span></div>
-    <div class="sub2row"><span>Ventas &middot; Pago de biles (Bill Payment)</span><span>${money(T.ventasBil)}</span></div>
-    ${T.ventasCred>0 ? `<div class="sub2row"><span>Ventas &middot; Creditos (cliente directo)</span><span>${money(T.ventasCred)}</span></div>` : ``}
-    <div><span>Salidas</span><span>${money(T.salidas)}</span></div>
-    <div><span>Cheques</span><span>${money(T.cheques)}</span></div>
-    ${T.cancTar>0 ? `
-    <div class="grptot"><span>Cancelaciones (total)</span><span>${money(T.canc)}</span></div>
-    <div class="sub2row"><span>Debito por cancelacion de tarjeta</span><span>${money(T.cancTar)}</span></div>
-    <div class="sub2row"><span>Cancelaciones (efectivo / otras)</span><span>${money(T.cancOtra)}</span></div>`
-    : `<div><span>Cancelaciones</span><span>${money(T.canc)}</span></div>`}
-    <div><span>Pagos realizados a proveedor (total)</span><span>${money(T.pagos)}</span></div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v14</div>
+  <div class="groups">
+    <div class="grupo">
+      <div class="ghdr"><span>Entradas &middot; Ventas (+)</span><span class="gt">${money(T.ventas)}</span></div>
+      <div class="grow l1"><span>Envios (Money Transfer)</span><span>${money(T.ventasEnv)}</span></div>
+      <div class="grow l1"><span>Pago de biles (Bill Payment)</span><span>${money(T.ventasBil)}</span></div>
+      ${T.ventasCred>0 ? `<div class="grow l1"><span>Creditos (cliente directo)</span><span>${money(T.ventasCred)}</span></div>` : ``}
+    </div>
+    <div class="grupo">
+      <div class="ghdr"><span>Salidas &middot; Abonos (&minus;)</span><span class="gt">${money(T.salidas)}</span></div>
+      <div class="grow l1"><span>Cheques acreditados</span><span>${money(T.cheques)}</span></div>
+      <div class="grow l1"><span>Cancelaciones</span><span>${money(T.canc)}</span></div>
+      ${T.cancTar>0 ? `
+      <div class="grow l2"><span>Debito por cancelacion de tarjeta</span><span>${money(T.cancTar)}</span></div>
+      <div class="grow l2"><span>Cancelaciones (efectivo / otras)</span><span>${money(T.cancOtra)}</span></div>` : ``}
+    </div>
+    <div class="grupo">
+      <div class="ghdr"><span>Pagos realizados &middot; Depositos (&minus;)</span><span class="gt">${money(T.pagos)}</span></div>
+    </div>
+    <div class="leyenda">(+) Entradas: suman &middot; (&minus;) Abonos/Liquidaciones: reducen el saldo a depositar. <b>Cheques acreditados</b> = "Credited Checks" del proveedor: es un abono, <b>no</b> un ingreso.</div>
   </div>
   <div class="sec">
     <h2><span>Salidas <span class="cnt">(${P.SALIDAS.length} mov.)</span></span><span class="tot">${money(T.salidas)}</span></h2>
@@ -283,7 +309,7 @@ function render(P){
     ${cancBloques(P.CANC)}
   </div>
   <div class="sec">
-    <h2><span>Cheques <span class="cnt">(${P.CHEQUES.length} mov.)</span></span><span class="tot">${money(T.cheques)}</span></h2>
+    <h2><span>Cheques acreditados <span class="cnt">(${P.CHEQUES.length} mov. &middot; abono, no es ingreso)</span></span><span class="tot">${money(T.cheques)}</span></h2>
     ${tablaTipoA(P.CHEQUES)}
   </div>
   <div class="sec">
