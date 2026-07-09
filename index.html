@@ -29,8 +29,10 @@
   .sec h2{
     font-size:12px;margin:0;padding:2px 0;
     border-bottom:1px solid #000;text-transform:uppercase;
+    display:flex;justify-content:space-between;align-items:baseline;
   }
   .sec .cnt{font-weight:normal;font-size:10px}
+  .sec h2 .tot{font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:10px}
   table{width:100%;border-collapse:collapse;margin-top:2px;table-layout:fixed}
   th,td{padding:1px 3px;text-align:left;vertical-align:top;border-bottom:1px dotted #999;
         overflow:hidden;text-overflow:ellipsis}
@@ -115,55 +117,61 @@ function sumRows(rows,idx){
 }
 function money(v){return "$"+toNum(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});}
 function esc(s){return (s==null?"":""+s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
-/* Quita apostrofe/comilla que Google Sheets antepone a campos de texto (fecha/hora) */
+/* Quita apostrofe/comilla que Google Sheets antepone a campos de texto */
 function stripQuote(s){return (s==null?"":(""+s)).replace(/^['`´‘’]+/,'').trim();}
+/* Limpia fecha/hora: elimina TODO caracter inicial que no sea digito
+   (apostrofe ', coma ',' , comillas, espacios, etc. que antepone Sheets) */
+function cleanDT(s){return (s==null?"":(""+s)).replace(/^[^\d]+/,'').trim();}
+/* Nombre + observacion en una sola celda: "NOMBRE / obs" si existe obs */
+function nameObs(name,obs){
+  const n=esc(name||'');
+  const o=(obs==null?'':(''+obs)).trim();
+  return o ? n+' / '+esc(o) : n;
+}
 /* Recorta a n caracteres (para Servicio y Forma de pago) */
 function cut(s,n){s=stripQuote(s); return s.length>n?s.slice(0,n):s;}
 /* Colgroup compartido: mas espacio a Cliente, columnas Servicio/F.Pago angostas */
 const COLS_A=`<colgroup>
   <col style="width:18%">
-  <col style="width:32%">
+  <col style="width:53%">
   <col style="width:9%">
   <col style="width:8%">
   <col style="width:12%">
-  <col style="width:21%">
 </colgroup>`;
 function tablaTipoA(rows){
   if(!rows.length) return `<div class="empty">Sin movimientos</div>`;
   const trs=rows.map(r=>`<tr>
-    <td class="nw">${esc(stripQuote(r[0]))} ${esc(stripQuote(r[1]))}</td>
-    <td class="name">${esc(r[2]||'')}</td>
+    <td class="nw">${esc(cleanDT(r[0]))} ${esc(cleanDT(r[1]))}</td>
+    <td class="name">${nameObs(r[2],r[6])}</td>
     <td class="nw">${esc(cut(r[3],6))}</td>
     <td class="nw">${esc(cut(r[4],5))}</td>
     <td class="r">${money(r[5])}</td>
-    <td>${esc(r[6]||'')}</td>
   </tr>`).join("");
   return `<table>
     ${COLS_A}
-    <thead><tr><th class="nw">Fecha/Hora</th><th>Cliente</th><th>Servicio</th><th>F.Pago</th><th class="r">Monto</th><th>Obs.</th></tr></thead>
+    <thead><tr><th class="nw">Fecha/Hora</th><th>Cliente / Obs.</th><th>Servicio</th><th>F.Pago</th><th class="r">Monto</th></tr></thead>
     <tbody>${trs}</tbody>
   </table>`;
 }
 function tablaPagos(rows){
   if(!rows.length) return `<div class="empty">Sin pagos registrados</div>`;
   const trs=rows.map(r=>`<tr>
-    <td class="nw">${esc(stripQuote(r[0]))}</td>
-    <td>${esc(r[1]||'')}</td>
+    <td class="nw">${esc(cleanDT(r[0]))}</td>
+    <td class="name">${nameObs(r[1],r[4])}</td>
     <td class="nw">${esc(cut(r[3],5))}</td>
     <td class="r">${money(r[2])}</td>
-    <td>${esc(r[4]||'')}</td>
   </tr>`).join("");
   return `<table>
     <colgroup>
-      <col style="width:18%"><col style="width:41%"><col style="width:8%"><col style="width:12%"><col style="width:21%">
+      <col style="width:18%"><col style="width:62%"><col style="width:8%"><col style="width:12%">
     </colgroup>
-    <thead><tr><th class="nw">Fecha</th><th>Referencia</th><th>F.Pago</th><th class="r">Monto</th><th>Obs.</th></tr></thead>
+    <thead><tr><th class="nw">Fecha</th><th>Referencia / Obs.</th><th>F.Pago</th><th class="r">Monto</th></tr></thead>
     <tbody>${trs}</tbody>
   </table>`;
 }
 function pad2(n){n=parseInt(n,10)||0; return (n<10?'0':'')+n;}
 function fileDate(s){
-  s=stripQuote(s);
+  s=cleanDT(s);
   const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if(!m) return s.replace(/[^\w-]/g,'');
   return pad2(m[1])+'-'+pad2(m[2])+'-'+m[3];
@@ -186,7 +194,7 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(stripQuote(g(1)))} a ${esc(stripQuote(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v4</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v7</div>
   <div class="totals">
     <div><span>Ventas</span><span>${money(T.ventas)}</span></div>
     <div><span>Salidas</span><span>${money(T.salidas)}</span></div>
@@ -195,23 +203,23 @@ function render(P){
     <div><span>Pagos realizados</span><span>${money(T.pagos)}</span></div>
   </div>
   <div class="sec">
-    <h2>Salidas <span class="cnt">(${P.SALIDAS.length} mov. &middot; ${money(T.salidas)})</span></h2>
+    <h2><span>Salidas <span class="cnt">(${P.SALIDAS.length} mov.)</span></span><span class="tot">${money(T.salidas)}</span></h2>
     ${tablaTipoA(P.SALIDAS)}
   </div>
   <div class="sec">
-    <h2>Cancelaciones <span class="cnt">(${P.CANC.length} mov. &middot; ${money(T.canc)})</span></h2>
+    <h2><span>Cancelaciones <span class="cnt">(${P.CANC.length} mov.)</span></span><span class="tot">${money(T.canc)}</span></h2>
     ${tablaTipoA(P.CANC)}
   </div>
   <div class="sec">
-    <h2>Cheques <span class="cnt">(${P.CHEQUES.length} mov. &middot; ${money(T.cheques)})</span></h2>
+    <h2><span>Cheques <span class="cnt">(${P.CHEQUES.length} mov.)</span></span><span class="tot">${money(T.cheques)}</span></h2>
     ${tablaTipoA(P.CHEQUES)}
   </div>
   <div class="sec">
-    <h2>Depositos (Pagos realizados) <span class="cnt">(${P.PAGOS.length} mov. &middot; ${money(T.pagos)})</span></h2>
+    <h2><span>Depositos (Pagos realizados) <span class="cnt">(${P.PAGOS.length} mov.)</span></span><span class="tot">${money(T.pagos)}</span></h2>
     ${tablaPagos(P.PAGOS)}
   </div>
   <div class="sec">
-    <h2>Ventas <span class="cnt">(${P.VENTAS.length} mov. &middot; ${money(T.ventas)})</span></h2>
+    <h2><span>Ventas <span class="cnt">(${P.VENTAS.length} mov.)</span></span><span class="tot">${money(T.ventas)}</span></h2>
     ${tablaTipoA(P.VENTAS)}
   </div>
   `;
