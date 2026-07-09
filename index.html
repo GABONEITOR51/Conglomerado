@@ -20,44 +20,10 @@
     margin:0 auto;
     padding:0.35in;
   }
-  .num{font-variant-numeric:tabular-nums}
-  .range{
-    text-align:right;font-weight:800;font-size:15px;letter-spacing:.5px;
-    color:#0f2747;margin:0 0 6px;font-family:"Segoe UI",Roboto,system-ui,sans-serif;
-  }
-  .range b{color:#3a7bd5}
-  .head{
-    display:flex;align-items:stretch;gap:12px;
-    border:1.5px solid #0f2747;border-radius:8px;overflow:hidden;
-    margin-bottom:12px;font-family:"Segoe UI",Roboto,system-ui,sans-serif;
-  }
-  .brand{
-    background:#fff;color:#0f2747;display:flex;align-items:center;gap:11px;
-    padding:8px 12px;min-width:190px;border-right:1px solid #cdd9e7;
-  }
-  .brand .logo{
-    width:44px;height:44px;border-radius:50%;background:#eef4fb;
-    border:2px solid #0f2747;flex:0 0 auto;display:flex;align-items:center;
-    justify-content:center;font-weight:900;color:#0f2747;font-size:16px;
-  }
-  .brand .who{line-height:1.18}
-  .brand .co{font-weight:800;font-size:15px;color:#0f2747}
-  .brand .emp{font-size:10px;color:#5a6675;margin-top:2px}
-  .provbadge{
-    display:inline-block;margin-top:3px;background:#0f2747;color:#fff;
-    font-weight:800;font-size:10.5px;letter-spacing:.4px;padding:2px 9px;
-    border-radius:11px;text-transform:uppercase;
-  }
-  .kpis{flex:1;display:grid;grid-template-columns:repeat(5,1fr);gap:0 10px;padding:6px 12px;align-content:center}
-  .kpi{display:flex;flex-direction:column;align-items:flex-start;padding:2px 8px;border-left:1px solid #eaf0f8}
-  .kpi:first-child{border-left:none}
-  .kpi .l{font-weight:800;color:#41546a;font-size:9px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
-  .kpi .v{font-weight:800;font-size:13px;margin-top:2px}
-  .kpi.ventas .v{color:#157f48}
-  .kpi.salidas .v{color:#c0392b}
-  .kpi.cheques .v{color:#2c6e9e}
-  .kpi.canc .v{color:#c0392b}
-  .kpi.pagos .v{color:#15406b}
+  h1{font-size:14px;margin:0 0 2px;text-transform:uppercase;letter-spacing:.5px}
+  .sub{font-size:11px;margin:0 0 10px}
+  .totals{margin:0 0 14px;border-top:1px solid #000;border-bottom:1px solid #000;padding:4px 0}
+  .totals div{display:flex;justify-content:space-between}
   .sec{margin-bottom:14px;break-inside:avoid}
   .sec h2{
     font-size:12px;margin:0;padding:2px 0;
@@ -170,37 +136,17 @@ function tablaPagos(rows){
     <tbody>${trs}</tbody>
   </table>`;
 }
-const MESES={ene:"ENERO",jan:"ENERO",feb:"FEBRERO",mar:"MARZO",abr:"ABRIL",apr:"ABRIL",
-  may:"MAYO",jun:"JUNIO",jul:"JULIO",ago:"AGOSTO",aug:"AGOSTO",sep:"SEPTIEMBRE",set:"SEPTIEMBRE",
-  oct:"OCTUBRE",nov:"NOVIEMBRE",dic:"DICIEMBRE",dec:"DICIEMBRE"};
-function fechaFull(s){
-  s=(""+(s||"")).trim();
-  if(!s) return "";
-  return s.replace(/[A-Za-zÁ-úÑñ]{3,}\.?/, m=>{
-    const k=m.slice(0,3).toLowerCase();
-    return MESES[k]||m.toUpperCase();
-  }).toUpperCase();
-}
 function render(P){
   const H=P.H, g=i=>H[i]!==undefined?H[i]:"";
   document.getElementById("sheet").innerHTML=`
-  <div class="range">${esc(fechaFull(g(1)))} &nbsp;<b>a</b>&nbsp; ${esc(fechaFull(g(2)))}</div>
-  <div class="head">
-    <div class="brand">
-      <div class="logo">805</div>
-      <div class="who">
-        <div class="co">805 MultiServices</div>
-        <div class="emp">${esc(g(9)||'Reporte de proveedor')}</div>
-        <div class="provbadge">${esc(g(0)||'PROVEEDOR')}</div>
-      </div>
-    </div>
-    <div class="kpis">
-      <div class="kpi ventas"><span class="l">Ventas</span><span class="v num">${money(g(4))}</span></div>
-      <div class="kpi salidas"><span class="l">Salidas</span><span class="v num">${money(g(5))}</span></div>
-      <div class="kpi cheques"><span class="l">Cheques</span><span class="v num">${money(g(6))}</span></div>
-      <div class="kpi canc"><span class="l">Cancelaciones</span><span class="v num">${money(g(7))}</span></div>
-      <div class="kpi pagos"><span class="l">Pagos Realizados</span><span class="v num">${money(g(8))}</span></div>
-    </div>
+  <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(g(1))} a ${esc(g(2))} &middot; Generado por: ${esc(g(9)||'-')}</div>
+  <div class="totals">
+    <div><span>Ventas</span><span>${money(g(4))}</span></div>
+    <div><span>Salidas</span><span>${money(g(5))}</span></div>
+    <div><span>Cheques</span><span>${money(g(6))}</span></div>
+    <div><span>Cancelaciones</span><span>${money(g(7))}</span></div>
+    <div><span>Pagos realizados</span><span>${money(g(8))}</span></div>
   </div>
 
   <div class="sec">
