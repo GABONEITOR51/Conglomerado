@@ -121,12 +121,12 @@ function stripQuote(s){return (s==null?"":(""+s)).replace(/^['`´‘’]+/,'').t
 function cut(s,n){s=stripQuote(s); return s.length>n?s.slice(0,n):s;}
 /* Colgroup compartido: mas espacio a Cliente, columnas Servicio/F.Pago angostas */
 const COLS_A=`<colgroup>
-  <col style="width:13%">
-  <col style="width:33%">
+  <col style="width:18%">
+  <col style="width:32%">
   <col style="width:9%">
   <col style="width:8%">
-  <col style="width:13%">
-  <col style="width:24%">
+  <col style="width:12%">
+  <col style="width:21%">
 </colgroup>`;
 function tablaTipoA(rows){
   if(!rows.length) return `<div class="empty">Sin movimientos</div>`;
@@ -155,7 +155,7 @@ function tablaPagos(rows){
   </tr>`).join("");
   return `<table>
     <colgroup>
-      <col style="width:13%"><col style="width:42%"><col style="width:8%"><col style="width:13%"><col style="width:24%">
+      <col style="width:18%"><col style="width:41%"><col style="width:8%"><col style="width:12%"><col style="width:21%">
     </colgroup>
     <thead><tr><th class="nw">Fecha</th><th>Referencia</th><th>F.Pago</th><th class="r">Monto</th><th>Obs.</th></tr></thead>
     <tbody>${trs}</tbody>
@@ -186,7 +186,7 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(stripQuote(g(1)))} a ${esc(stripQuote(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v3</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(stripQuote(g(1)))} a ${esc(stripQuote(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v4</div>
   <div class="totals">
     <div><span>Ventas</span><span>${money(T.ventas)}</span></div>
     <div><span>Salidas</span><span>${money(T.salidas)}</span></div>
