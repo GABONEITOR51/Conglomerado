@@ -25,6 +25,9 @@
   .totals{margin:0 0 14px;border-top:1px solid #000;border-bottom:1px solid #000;padding:4px 0}
   .totals div{display:grid;grid-template-columns:1fr 110px;column-gap:12px;padding:1px 0}
   .totals div span:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .totals div.sub2row span:first-child{padding-left:14px;font-size:10px}
+  .totals div.sub2row span:last-child{font-size:10px}
+  .totals div.grp{border-top:1px dotted #999}
   .sec{margin-bottom:14px;break-inside:avoid}
   .sec h2{
     font-size:12px;margin:0;padding:2px 0;
@@ -33,6 +36,12 @@
   }
   .sec .cnt{font-weight:normal;font-size:10px}
   .sec h2 .tot{font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:10px}
+  .sec h3.sub2{
+    font-size:11px;margin:7px 0 0;padding:1px 0;
+    border-bottom:1px dashed #000;text-transform:uppercase;font-weight:bold;
+    display:flex;justify-content:space-between;align-items:baseline;
+  }
+  .sec h3.sub2 .tot{font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:10px}
   table{width:100%;border-collapse:collapse;margin-top:2px;table-layout:fixed}
   th,td{padding:1px 3px;text-align:left;vertical-align:top;border-bottom:1px dotted #999;
         overflow:hidden;text-overflow:ellipsis}
@@ -69,7 +78,10 @@
             (ya no se confia en los valores 4/5/6/7/8 del HEADER de AppSheet). */
 const SEC='||', REC='~~', F='^';
 const DEMO_H = ["VIAMERICAS","26/4/2026","6/6/2026","","5240.00","1612.00","300.00","190.00","4950.00","805 MultiServices"];
-const DEMO_VENTAS=[["6/26/2026","12:37 PM","NAYELI SAUCEDA GUERRERO","ENVIO/BILL","EFECTIVO","1757",""]];
+const DEMO_VENTAS=[
+  ["6/26/2026","12:37 PM","NAYELI SAUCEDA GUERRERO","ENVIO/","EFECTIVO","1757","","Money Transfer"],
+  ["6/27/2026","1:10 PM","JUAN PEREZ LOPEZ","BILL","TARJETA","243","","Bill Paymnt"]
+];
 const DEMO_SALIDAS=[["7/7/2026","19:54","RAFAEL GONZALEZ CHAVEZ","CHEQUE","EFECTIVO","151",""]];
 const DEMO_CHEQUES=[["7/7/2026","19:54","RAFAEL GONZALEZ CHAVEZ","CHEQUE","EFECTIVO","151.07",""]];
 const DEMO_CANC=[["6/22/2026","4:15 PM","CELSO SANTIAGO APOLINAR","CANCELACION / PAYOUT","EFECTIVO","190","cancelacion"]];
@@ -153,6 +165,28 @@ function tablaTipoA(rows){
     <tbody>${trs}</tbody>
   </table>`;
 }
+/* Clasifica una fila de Ventas por [TipoEnvio] (indice 7): Money Transfer / Bill Paymnt */
+function ventaTipo(r){
+  const t=(r[7]==null?'':(''+r[7])).toLowerCase();
+  if(/bill/.test(t)) return 'bill';
+  if(/money|transfer|env[ií]o/.test(t)) return 'envio';
+  return t.trim()==='' ? '' : 'otro';
+}
+/* Sub-bloque titulado con contador y subtotal (para separar Ventas) */
+function subBloque(titulo,rows){
+  return `<h3 class="sub2"><span>${titulo} <span class="cnt">(${rows.length} mov.)</span></span><span class="tot">${money(sumRows(rows,5))}</span></h3>${tablaTipoA(rows)}`;
+}
+/* Divide Ventas en Envios (Money Transfer) vs Pago de biles (Bill Payment).
+   Si aun no llega el campo TipoEnvio en el payload, muestra la tabla unica (compatibilidad). */
+function ventasBloques(rows){
+  const env=rows.filter(r=>ventaTipo(r)==='envio');
+  const bil=rows.filter(r=>ventaTipo(r)==='bill');
+  const otr=rows.filter(r=>{const k=ventaTipo(r);return k!=='envio'&&k!=='bill';});
+  if(env.length===0 && bil.length===0) return tablaTipoA(rows);
+  let html=subBloque('Envios (Money Transfer)',env)+subBloque('Pago de biles (Bill Payment)',bil);
+  if(otr.length) html+=subBloque('Otros / sin clasificar',otr);
+  return html;
+}
 function tablaPagos(rows){
   if(!rows.length) return `<div class="empty">Sin pagos registrados</div>`;
   const trs=rows.map(r=>`<tr>
@@ -186,6 +220,8 @@ function render(P){
   /* Totales reales calculados desde los movimientos (fix de encabezado) */
   const T={
     ventas:  sumRows(P.VENTAS,5),
+    ventasEnv: sumRows(P.VENTAS.filter(r=>ventaTipo(r)==='envio'),5),
+    ventasBil: sumRows(P.VENTAS.filter(r=>ventaTipo(r)==='bill'),5),
     salidas: sumRows(P.SALIDAS,5),
     cheques: sumRows(P.CHEQUES,5),
     canc:    sumRows(P.CANC,5),
@@ -194,9 +230,11 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v7</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v9</div>
   <div class="totals">
-    <div><span>Ventas</span><span>${money(T.ventas)}</span></div>
+    <div class="sub2row"><span>Ventas &middot; Envios (Money Transfer)</span><span>${money(T.ventasEnv)}</span></div>
+    <div class="sub2row"><span>Ventas &middot; Pago de biles (Bill Payment)</span><span>${money(T.ventasBil)}</span></div>
+    <div class="grp"><span>Ventas (total)</span><span>${money(T.ventas)}</span></div>
     <div><span>Salidas</span><span>${money(T.salidas)}</span></div>
     <div><span>Cheques</span><span>${money(T.cheques)}</span></div>
     <div><span>Cancelaciones</span><span>${money(T.canc)}</span></div>
@@ -220,7 +258,7 @@ function render(P){
   </div>
   <div class="sec">
     <h2><span>Ventas <span class="cnt">(${P.VENTAS.length} mov.)</span></span><span class="tot">${money(T.ventas)}</span></h2>
-    ${tablaTipoA(P.VENTAS)}
+    ${ventasBloques(P.VENTAS)}
   </div>
   `;
 }
