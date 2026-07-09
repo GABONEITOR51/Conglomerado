@@ -23,17 +23,21 @@
   h1{font-size:14px;margin:0 0 2px;text-transform:uppercase;letter-spacing:.5px}
   .sub{font-size:11px;margin:0 0 10px}
   .totals{margin:0 0 14px;border-top:1px solid #000;border-bottom:1px solid #000;padding:4px 0}
-  .totals div{display:flex;justify-content:space-between}
+  .totals div{display:grid;grid-template-columns:1fr 110px;column-gap:12px;padding:1px 0}
+  .totals div span:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
   .sec{margin-bottom:14px;break-inside:avoid}
   .sec h2{
     font-size:12px;margin:0;padding:2px 0;
     border-bottom:1px solid #000;text-transform:uppercase;
   }
   .sec .cnt{font-weight:normal;font-size:10px}
-  table{width:100%;border-collapse:collapse;margin-top:2px}
-  th,td{padding:1px 3px;text-align:left;vertical-align:top;border-bottom:1px dotted #999}
+  table{width:100%;border-collapse:collapse;margin-top:2px;table-layout:fixed}
+  th,td{padding:1px 3px;text-align:left;vertical-align:top;border-bottom:1px dotted #999;
+        overflow:hidden;text-overflow:ellipsis}
   th{font-weight:bold;border-bottom:1px solid #000}
   td.r,th.r{text-align:right;white-space:nowrap}
+  td.nw,th.nw{white-space:nowrap}
+  td.name{white-space:normal;word-break:break-word}
   .empty{padding:4px 0;font-style:italic}
   .print-btn{
     position:fixed;right:14px;bottom:14px;
@@ -58,16 +62,16 @@
    sec sep: ||   fila sep: ~~   campo sep: ^
    HEADER: 0 proveedor 1 fechaIni 2 fechaFin 3 logoURL(ignorado) 4 totVentas 5 totSalidas 6 totCheques 7 totCanc 8 totPagos 9 generadoPor
    VENTAS/SALIDAS/CHEQUES/CANC: 0 fecha 1 hora 2 cliente 3 servicio 4 formaPago 5 monto 6 observacion
-   PAGOS: 0 fecha 1 referencia 2 monto 3 formaPago 4 observacion */
+   PAGOS: 0 fecha 1 referencia 2 monto 3 formaPago 4 observacion
+   NOTA v2: los totales del encabezado se recalculan en JS a partir de los movimientos reales
+            (ya no se confia en los valores 4/5/6/7/8 del HEADER de AppSheet). */
 const SEC='||', REC='~~', F='^';
-
 const DEMO_H = ["VIAMERICAS","26/4/2026","6/6/2026","","5240.00","1612.00","300.00","190.00","4950.00","805 MultiServices"];
 const DEMO_VENTAS=[["6/26/2026","12:37 PM","NAYELI SAUCEDA GUERRERO","ENVIO/BILL","EFECTIVO","1757",""]];
 const DEMO_SALIDAS=[["7/7/2026","19:54","RAFAEL GONZALEZ CHAVEZ","CHEQUE","EFECTIVO","151",""]];
 const DEMO_CHEQUES=[["7/7/2026","19:54","RAFAEL GONZALEZ CHAVEZ","CHEQUE","EFECTIVO","151.07",""]];
 const DEMO_CANC=[["6/22/2026","4:15 PM","CELSO SANTIAGO APOLINAR","CANCELACION / PAYOUT","EFECTIVO","190","cancelacion"]];
 const DEMO_PAGOS=[["26/4/2026","PAGO-000123","2450.00","TRANSFERENCIA",""]];
-
 function smartDecode(raw){
   let s=raw;
   try{ s=decodeURIComponent(raw); }catch(e){ s=raw; }
@@ -104,41 +108,62 @@ function toNum(v){
   const n=parseFloat((""+v).replace(/[^0-9.\-]/g,""));
   return isNaN(n)?0:n;
 }
+/* Suma el campo idx de todas las filas -> total real del bloque */
+function sumRows(rows,idx){
+  if(!rows||!rows.length) return 0;
+  return rows.reduce((a,r)=>a+toNum(r[idx]),0);
+}
 function money(v){return "$"+toNum(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});}
 function esc(s){return (s==null?"":""+s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
-
+/* Quita apostrofe/comilla que Google Sheets antepone a campos de texto (fecha/hora) */
+function stripQuote(s){return (s==null?"":(""+s)).replace(/^['`´‘’]+/,'').trim();}
+/* Recorta a n caracteres (para Servicio y Forma de pago) */
+function cut(s,n){s=stripQuote(s); return s.length>n?s.slice(0,n):s;}
+/* Colgroup compartido: mas espacio a Cliente, columnas Servicio/F.Pago angostas */
+const COLS_A=`<colgroup>
+  <col style="width:13%">
+  <col style="width:33%">
+  <col style="width:9%">
+  <col style="width:8%">
+  <col style="width:13%">
+  <col style="width:24%">
+</colgroup>`;
 function tablaTipoA(rows){
   if(!rows.length) return `<div class="empty">Sin movimientos</div>`;
   const trs=rows.map(r=>`<tr>
-    <td>${esc(r[0]||'')} ${esc(r[1]||'')}</td>
-    <td>${esc(r[2]||'')}</td>
-    <td>${esc(r[3]||'')}</td>
-    <td>${esc(r[4]||'')}</td>
+    <td class="nw">${esc(stripQuote(r[0]))} ${esc(stripQuote(r[1]))}</td>
+    <td class="name">${esc(r[2]||'')}</td>
+    <td class="nw">${esc(cut(r[3],6))}</td>
+    <td class="nw">${esc(cut(r[4],5))}</td>
     <td class="r">${money(r[5])}</td>
     <td>${esc(r[6]||'')}</td>
   </tr>`).join("");
   return `<table>
-    <thead><tr><th>Fecha/Hora</th><th>Cliente</th><th>Servicio</th><th>F.Pago</th><th class="r">Monto</th><th>Obs.</th></tr></thead>
+    ${COLS_A}
+    <thead><tr><th class="nw">Fecha/Hora</th><th>Cliente</th><th>Servicio</th><th>F.Pago</th><th class="r">Monto</th><th>Obs.</th></tr></thead>
     <tbody>${trs}</tbody>
   </table>`;
 }
 function tablaPagos(rows){
   if(!rows.length) return `<div class="empty">Sin pagos registrados</div>`;
   const trs=rows.map(r=>`<tr>
-    <td>${esc(r[0]||'')}</td>
+    <td class="nw">${esc(stripQuote(r[0]))}</td>
     <td>${esc(r[1]||'')}</td>
-    <td>${esc(r[3]||'')}</td>
+    <td class="nw">${esc(cut(r[3],5))}</td>
     <td class="r">${money(r[2])}</td>
     <td>${esc(r[4]||'')}</td>
   </tr>`).join("");
   return `<table>
-    <thead><tr><th>Fecha</th><th>Referencia</th><th>F.Pago</th><th class="r">Monto</th><th>Obs.</th></tr></thead>
+    <colgroup>
+      <col style="width:13%"><col style="width:42%"><col style="width:8%"><col style="width:13%"><col style="width:24%">
+    </colgroup>
+    <thead><tr><th class="nw">Fecha</th><th>Referencia</th><th>F.Pago</th><th class="r">Monto</th><th>Obs.</th></tr></thead>
     <tbody>${trs}</tbody>
   </table>`;
 }
 function pad2(n){n=parseInt(n,10)||0; return (n<10?'0':'')+n;}
 function fileDate(s){
-  s=(""+(s||'')).trim();
+  s=stripQuote(s);
   const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if(!m) return s.replace(/[^\w-]/g,'');
   return pad2(m[1])+'-'+pad2(m[2])+'-'+m[3];
@@ -150,36 +175,43 @@ function fileProv(s){
 }
 function render(P){
   const H=P.H, g=i=>H[i]!==undefined?H[i]:"";
+  /* Totales reales calculados desde los movimientos (fix de encabezado) */
+  const T={
+    ventas:  sumRows(P.VENTAS,5),
+    salidas: sumRows(P.SALIDAS,5),
+    cheques: sumRows(P.CHEQUES,5),
+    canc:    sumRows(P.CANC,5),
+    pagos:   sumRows(P.PAGOS,2)
+  };
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(g(1))} a ${esc(g(2))} &middot; Generado por: ${esc(g(9)||'-')}</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(stripQuote(g(1)))} a ${esc(stripQuote(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v3</div>
   <div class="totals">
-    <div><span>Ventas</span><span>${money(g(4))}</span></div>
-    <div><span>Salidas</span><span>${money(g(5))}</span></div>
-    <div><span>Cheques</span><span>${money(g(6))}</span></div>
-    <div><span>Cancelaciones</span><span>${money(g(7))}</span></div>
-    <div><span>Pagos realizados</span><span>${money(g(8))}</span></div>
+    <div><span>Ventas</span><span>${money(T.ventas)}</span></div>
+    <div><span>Salidas</span><span>${money(T.salidas)}</span></div>
+    <div><span>Cheques</span><span>${money(T.cheques)}</span></div>
+    <div><span>Cancelaciones</span><span>${money(T.canc)}</span></div>
+    <div><span>Pagos realizados</span><span>${money(T.pagos)}</span></div>
   </div>
-
   <div class="sec">
-    <h2>Salidas <span class="cnt">(${P.SALIDAS.length} mov. &middot; ${money(g(5))})</span></h2>
+    <h2>Salidas <span class="cnt">(${P.SALIDAS.length} mov. &middot; ${money(T.salidas)})</span></h2>
     ${tablaTipoA(P.SALIDAS)}
   </div>
   <div class="sec">
-    <h2>Cancelaciones <span class="cnt">(${P.CANC.length} mov. &middot; ${money(g(7))})</span></h2>
+    <h2>Cancelaciones <span class="cnt">(${P.CANC.length} mov. &middot; ${money(T.canc)})</span></h2>
     ${tablaTipoA(P.CANC)}
   </div>
   <div class="sec">
-    <h2>Cheques <span class="cnt">(${P.CHEQUES.length} mov. &middot; ${money(g(6))})</span></h2>
+    <h2>Cheques <span class="cnt">(${P.CHEQUES.length} mov. &middot; ${money(T.cheques)})</span></h2>
     ${tablaTipoA(P.CHEQUES)}
   </div>
   <div class="sec">
-    <h2>Depositos (Pagos realizados) <span class="cnt">(${P.PAGOS.length} mov. &middot; ${money(g(8))})</span></h2>
+    <h2>Depositos (Pagos realizados) <span class="cnt">(${P.PAGOS.length} mov. &middot; ${money(T.pagos)})</span></h2>
     ${tablaPagos(P.PAGOS)}
   </div>
   <div class="sec">
-    <h2>Ventas <span class="cnt">(${P.VENTAS.length} mov. &middot; ${money(g(4))})</span></h2>
+    <h2>Ventas <span class="cnt">(${P.VENTAS.length} mov. &middot; ${money(T.ventas)})</span></h2>
     ${tablaTipoA(P.VENTAS)}
   </div>
   `;
