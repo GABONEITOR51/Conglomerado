@@ -100,14 +100,14 @@ const SEC='||', REC='~~', F='^';
 const DEMO_H = ["VIAMERICAS","26/4/2026","6/6/2026","","5240.00","1612.00","300.00","190.00","4950.00","805 MultiServices"];
 const DEMO_VENTAS=[
   ["6/26/2026","12:37 PM","NAYELI SAUCEDA GUERRERO","ENVIO/","EFECTIVO","1757","","Money Transfer"],
-  ["6/27/2026","1:10 PM","JUAN PEREZ LOPEZ","BILL","TARJETA","243","","Bill Paymnt"],
-  ["6/28/2026","9:20 AM","MARIA LOPEZ CRUZ","ENVIO/","CLIENTE DIRECTO A COMPANIA","900","","Money Transfer"]
+  ["6/27/2026","1:10 PM","JUAN PEREZ LOPEZ","BILL","DEBITO","243","","Bill Paymnt"],
+  ["6/28/2026","9:20 AM","MARIA LOPEZ CRUZ","ENVIO/","PAGO DIRECTO CLIENTE A COMPANIA CARD","900","","Money Transfer"]
 ];
 const DEMO_SALIDAS=[["7/7/2026","19:54","RAFAEL GONZALEZ CHAVEZ","CHEQUE","EFECTIVO","151",""]];
 const DEMO_CHEQUES=[["7/7/2026","19:54","RAFAEL GONZALEZ CHAVEZ","CHEQUE","EFECTIVO","151.07",""]];
 const DEMO_CANC=[
   ["6/22/2026","4:15 PM","CELSO SANTIAGO APOLINAR","CANCELACION / PAYOUT","EFECTIVO","190","cancelacion"],
-  ["6/23/2026","5:30 PM","ROSA MARTINEZ DIAZ","CANCELACION","TARJETA","310","reembolso"]
+  ["6/23/2026","5:30 PM","ROSA MARTINEZ DIAZ","CANCELACION","PAGO DIRECTO CLIENTE A COMPANIA CARD","310","reembolso"]
 ];
 const DEMO_PAGOS=[["26/4/2026","PAGO-000123","2450.00","TRANSFERENCIA",""]];
 function smartDecode(raw){
@@ -189,22 +189,27 @@ function tablaTipoA(rows){
     <tbody>${trs}</tbody>
   </table>`;
 }
+/* Forma de pago "TCD" = PAGO DIRECTO CLIENTE A COMPANIA (CARD):
+   el cliente paga con su propia tarjeta en la terminal del proveedor.
+   -> En Ventas es un CREDITO; en Cancelaciones es "Debito por cancelacion de tarjeta".
+   Reconoce el codigo "TCD" y tambien la descripcion larga (por si el payload manda el texto). */
+function esTCD(fp){
+  fp=(fp==null?'':(''+fp)).toLowerCase();
+  return /\btcd\b|pago directo cliente|cliente\s*directo|directo a compa/.test(fp);
+}
 /* Clasifica una fila de Ventas.
-   PRIORIDAD 1: forma de pago "cliente directo a compania" -> credito
-   (pago directo del cliente en la terminal del proveedor).
+   PRIORIDAD 1: forma de pago TCD -> credito.
    Luego por [TipoEnvio] (indice 7): Money Transfer / Bill Paymnt. */
 function ventaTipo(r){
-  const fp=(r[4]==null?'':(''+r[4])).toLowerCase();
-  if(/cliente\s*directo|directo a compa/.test(fp)) return 'credito';
+  if(esTCD(r[4])) return 'credito';
   const t=(r[7]==null?'':(''+r[7])).toLowerCase();
   if(/bill/.test(t)) return 'bill';
   if(/money|transfer|env[ií]o/.test(t)) return 'envio';
   return t.trim()==='' ? '' : 'otro';
 }
-/* Clasifica una Cancelacion: forma de pago con tarjeta -> "Debito por cancelacion de tarjeta" */
+/* Clasifica una Cancelacion: forma de pago TCD -> "Debito por cancelacion de tarjeta" */
 function cancTipo(r){
-  const fp=(r[4]==null?'':(''+r[4])).toLowerCase();
-  return /tarjeta/.test(fp) ? 'tarjeta' : 'otra';
+  return esTCD(r[4]) ? 'tarjeta' : 'otra';
 }
 /* Sub-bloque titulado con contador y subtotal (para separar Ventas) */
 function subBloque(titulo,rows){
@@ -279,7 +284,7 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v14</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v17</div>
   <div class="groups">
     <div class="grupo">
       <div class="ghdr"><span>Entradas &middot; Ventas (+)</span><span class="gt">${money(T.ventas)}</span></div>
