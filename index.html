@@ -284,7 +284,7 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v17</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v18</div>
   <div class="groups">
     <div class="grupo">
       <div class="ghdr"><span>Entradas &middot; Ventas (+)</span><span class="gt">${money(T.ventas)}</span></div>
@@ -304,10 +304,6 @@ function render(P){
       <div class="ghdr"><span>Pagos realizados &middot; Depositos (&minus;)</span><span class="gt">${money(T.pagos)}</span></div>
     </div>
     <div class="leyenda">(+) Entradas: suman &middot; (&minus;) Abonos/Liquidaciones: reducen el saldo a depositar. <b>Cheques acreditados</b> = "Credited Checks" del proveedor: es un abono, <b>no</b> un ingreso.</div>
-  </div>
-  <div class="sec">
-    <h2><span>Salidas <span class="cnt">(${P.SALIDAS.length} mov.)</span></span><span class="tot">${money(T.salidas)}</span></h2>
-    ${tablaTipoA(P.SALIDAS)}
   </div>
   <div class="sec">
     <h2><span>Cancelaciones <span class="cnt">(${P.CANC.length} mov.)</span></span><span class="tot">${money(T.canc)}</span></h2>
