@@ -242,10 +242,15 @@ function ventaTipo(r){
    Un envio pagado con tarjeta (TCD) sigue siendo un "Money Transfer" y ademas se descuenta
    aparte como "Credito". Usa [TipoEnvio] (idx 7) y, como respaldo, el [Servicio] (idx 3). */
 function prodTipo(r){
-  const t=((''+(r[7]||''))+' '+(''+(r[3]||''))).toLowerCase();
-  if(/bill|bile/.test(t)) return 'bill';
-  if(/money|transfer|env[ií]o/.test(t)) return 'envio';
-  return 'otro';
+  /* Clasifica por PRODUCTO usando SOLO [TipoEnvio] (idx 7).
+     OJO: el [Servicio] (idx 3) llega como "ENVIO/" para TODO (envios, biles y
+     creditos), asi que NO sirve para distinguir; incluirlo mandaba todo a un lado.
+     Regla: si TipoEnvio dice "bill" -> Bill Payment; cualquier otra cosa -> Money
+     Transfer (incluye los envios pagados con tarjeta, que asi entran a "Envios De
+     Dinero" tal como los cuenta el statement de Viamericas). */
+  const t=(''+(r[7]||'')).toLowerCase();
+  if(/bill/.test(t)) return 'bill';
+  return 'envio';
 }
 /* Clasifica una Cancelacion: forma de pago TCD -> "Debito por cancelacion de tarjeta" */
 function cancTipo(r){
@@ -319,7 +324,7 @@ function statementTable(P,T,balIni,balIniSet,debitos,debSet){
   const bilN=T.billCount, bilA=T.billSum;              // Bill Payment: INCLUYE TCD (validado vs statement)
   const otrTotN=bilN, otrTotA=bilA;                     // total columna 2 (resto = 0 sin fuente)
   /* ---- Columna 3: Balance ----
-     Formula VIA (validada, cuadra a $4,896.52 en junio):
+     Formula VIA (validada, cuadra a $975.68 en mayo y $4,896.52 en junio):
        Inicial + MoneyTransfers + OtherServices + Debitos
        - CreditedChecks - Deposits/ViaSafe - Credits
      Creditos = grupo "Creditos (cliente directo a compania)" del reporte (se resta). */
@@ -395,15 +400,16 @@ function render(P){
     cancOtra:sumRows(P.CANC.filter(r=>cancTipo(r)==='otra'),5),
     pagos:   sumRows(P.PAGOS,2)
   };
-  /* VALIDADO contra el statement real de Viamericas (junio 2026):
-     La linea "Money Transfers" INCLUYE los envios pagados con tarjeta del cliente,
-     y esos mismos montos se RESTAN en "Credits". Prueba: las transacciones
-     A28934-1535/1540/1544/1545... aparecen a la vez en el detalle de Money Transfers
-     y en el de Credits, y el Balance solo cuadra ($4,896.52) de esa forma.
-     Por eso el statement clasifica por PRODUCTO (no por forma de pago):
-       Envios De Dinero = TODOS los money transfer (incluye TCD)
-       Pago de Biles    = TODOS los bill payment (incluye TCD)
-       Creditos         = todo lo pagado con tarjeta (se resta en el Balance) */
+  /* VALIDADO contra los statements reales de Viamericas MAYO y JUNIO 2026:
+     La linea "Envios De Dinero" (Money Transfers) INCLUYE los envios pagados con
+     tarjeta, y esos mismos montos se RESTAN en "Creditos". Prueba a nivel transaccion:
+       - Mayo:  A28934-1440 ($1,522.50) aparece en Envios De Dinero Y en Creditos.
+       - Junio: 23 transacciones (1535,1540,...,1657) aparecen en ambas secciones.
+     Ambos Balances cuadran solo de esa forma ($975.68 mayo, $4,896.52 junio).
+     Por eso se clasifica por PRODUCTO (prodTipo, campo [TipoEnvio]), NO por forma de pago:
+       Envios De Dinero = TODOS los money transfer (incluye los pagados con tarjeta)
+       Pago de Biles    = TODOS los bill payment
+       Creditos         = lo pagado con tarjeta, se resta en el Balance */
   const mtRows  =P.VENTAS.filter(r=>prodTipo(r)==='envio');
   const billRows=P.VENTAS.filter(r=>prodTipo(r)==='bill');
   T.mtCount=mtRows.length;     T.mtSum=sumRows(mtRows,5);
@@ -418,7 +424,7 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v19</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v22</div>
   ${statementTable(P,T,balIni,balIniSet,debitos,debSet)}
   <div class="groups">
     <div class="grupo">
