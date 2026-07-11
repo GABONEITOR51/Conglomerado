@@ -311,18 +311,20 @@ function stRowB(concepto,monto,cls){
    Rojo = fila sin fuente de datos en el reporte (editar a mano). */
 function statementTable(P,T,balIni,balIniSet,debitos,debSet){
   /* ---- Columna 1: Envios De Dinero (Money Transfers) ---- */
-  const envN=T.mtCount,  envA=T.mtSum;                 // envios (incluye envio pagado con tarjeta)
+  const envN=T.mtCount, envA=T.mtSum;                  // Money Transfers: INCLUYE TCD (validado vs statement)
   const canN=P.CANC.length, canA=T.canc;               // cancelaciones (todas; el payload no separa MT/bile)
   const subN=envN-canN, subA=envA-canA;                 // subtotal (anulados = 0)
   const totN=subN, totA=subA;                           // total columna 1 (pago de envios = 0)
   /* ---- Columna 2: Otros Servicios ---- */
-  const bilN=T.billCount, bilA=T.billSum;              // pago de biles
+  const bilN=T.billCount, bilA=T.billSum;              // Bill Payment: INCLUYE TCD (validado vs statement)
   const otrTotN=bilN, otrTotA=bilA;                     // total columna 2 (resto = 0 sin fuente)
   /* ---- Columna 3: Balance ----
-     Formula VIA: Inicial + MoneyTransfers + OtherServices + Debitos
-                  - CreditedChecks - Deposits/ViaSafe - Credits */
+     Formula VIA (validada, cuadra a $4,896.52 en junio):
+       Inicial + MoneyTransfers + OtherServices + Debitos
+       - CreditedChecks - Deposits/ViaSafe - Credits
+     Creditos = grupo "Creditos (cliente directo a compania)" del reporte (se resta). */
   const bEnv=totA, bOtr=otrTotA;
-  const bChq=-T.cheques, bDep=-T.pagos, bCred=-T.credSum, bDeb=toNum(debitos);
+  const bChq=-T.cheques, bDep=-T.pagos, bCred=-T.ventasCred, bDeb=toNum(debitos);
   const bTot=toNum(balIni)+bEnv+bOtr+bChq+bDep+bDeb+bCred;
 
   const col1=`<div class="stmt-col">
@@ -393,13 +395,19 @@ function render(P){
     cancOtra:sumRows(P.CANC.filter(r=>cancTipo(r)==='otra'),5),
     pagos:   sumRows(P.PAGOS,2)
   };
-  /* Totales por PRODUCTO para el statement (envio incluye TCD; bile incluye TCD). */
+  /* VALIDADO contra el statement real de Viamericas (junio 2026):
+     La linea "Money Transfers" INCLUYE los envios pagados con tarjeta del cliente,
+     y esos mismos montos se RESTAN en "Credits". Prueba: las transacciones
+     A28934-1535/1540/1544/1545... aparecen a la vez en el detalle de Money Transfers
+     y en el de Credits, y el Balance solo cuadra ($4,896.52) de esa forma.
+     Por eso el statement clasifica por PRODUCTO (no por forma de pago):
+       Envios De Dinero = TODOS los money transfer (incluye TCD)
+       Pago de Biles    = TODOS los bill payment (incluye TCD)
+       Creditos         = todo lo pagado con tarjeta (se resta en el Balance) */
   const mtRows  =P.VENTAS.filter(r=>prodTipo(r)==='envio');
   const billRows=P.VENTAS.filter(r=>prodTipo(r)==='bill');
-  const credRows=P.VENTAS.filter(r=>esTCD(r[4]));
   T.mtCount=mtRows.length;     T.mtSum=sumRows(mtRows,5);
   T.billCount=billRows.length; T.billSum=sumRows(billRows,5);
-  T.credCount=credRows.length; T.credSum=sumRows(credRows,5);
   /* Balance Inicial (idx 10) y Debitos (idx 11): opcionales en el HEADER.
      Si no llegan -> 0 y se pintan en ROJO (editar a mano). */
   const balIniSet = H[10]!==undefined && (''+H[10]).trim()!=='';
