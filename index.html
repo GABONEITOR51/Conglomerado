@@ -32,10 +32,10 @@
           border-bottom:1.5px solid #000;letter-spacing:.3px}
   .stmt-col.bal .stmt-h{color:#8a8a8a}
   .stmt table{width:100%;border-collapse:collapse;margin:0;table-layout:fixed}
-  .stmt td{padding:3px 8px;font-size:11px;vertical-align:baseline;border:none}
+  .stmt td{padding:3px 5px;font-size:11px;vertical-align:baseline;border:none}
   .stmt td.c{text-align:left;white-space:normal;word-break:break-word}
-  .stmt td.n{text-align:right;width:30px;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .stmt td.a{text-align:right;width:88px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .stmt td.n{text-align:right;width:34px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .stmt td.a{text-align:right;width:80px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .stmt tr.bold td{font-weight:bold}
   .stmt tr.sep td{border-top:1px solid #000}
   .stmt tr.red td{color:#d00}
@@ -426,7 +426,7 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v25</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v26</div>
   ${statementTable(P,T,balIni,balIniSet,debitos,debSet)}
   <div class="groups">
     <div class="grupo">
