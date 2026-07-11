@@ -178,10 +178,12 @@ function sumRows(rows,idx){
   return rows.reduce((a,r)=>a+toNum(r[idx]),0);
 }
 function money(v){return "$"+toNum(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});}
-/* Igual que money() pero con el signo menos ANTES del $ (formato statement: -$5,100.00) */
+/* Igual que money() pero con el signo menos ANTES del $ y SIN centavos (statement: -$5,100).
+   Si el valor es 0 devuelve "" (celda en blanco). */
 function money2(v){
-  const n=toNum(v);
-  return (n<0?"-":"")+"$"+Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const n=Math.round(toNum(v));
+  if(n===0) return "";
+  return (n<0?"-":"")+"$"+Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0});
 }
 function esc(s){return (s==null?"":""+s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
 /* Quita apostrofe/comilla que Google Sheets antepone a campos de texto */
@@ -304,7 +306,7 @@ function tablaPagos(rows){
    Fila de columna con CANTIDAD + MONTO (Envios De Dinero / Otros Servicios). */
 function stRowA(concepto,cant,monto,cls){
   cls=cls||'';
-  const c=(cant===null||cant===undefined)?'':(''+cant);
+  const c=(cant===null||cant===undefined||cant===0)?'':(''+cant);
   return `<tr class="${cls}"><td class="c">${concepto}</td><td class="n">${c}</td><td class="a">${money2(monto)}</td></tr>`;
 }
 /* Fila de columna Balance: solo CONCEPTO + MONTO. */
@@ -347,10 +349,10 @@ function statementTable(P,T,balIni,balIniSet,debitos,debSet){
     <div class="stmt-h">Otros Servicios</div>
     <table>
       ${stRowA('Pago de Biles',bilN,bilA)}
-      ${stRowA('Pago de Biles Internacionales',0,0,'red')}
+      ${stRowA('Pago de Biles Int.',0,0,'red')}
       ${stRowA('Pagos de Biles Cancelados',0,0,'red')}
       ${stRowA('Money Orders',0,0,'red')}
-      ${stRowA('Recargas / Pin / Pinless',0,0,'red')}
+      ${stRowA('Recargas / Pin',0,0,'red')}
       ${stRowA('Recargas Canceladas',0,0,'red')}
       ${stRowA('Total',otrTotN,otrTotA,'bold sep')}
     </table>
@@ -424,7 +426,7 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v22</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v25</div>
   ${statementTable(P,T,balIni,balIniSet,debitos,debSet)}
   <div class="groups">
     <div class="grupo">
