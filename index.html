@@ -258,6 +258,28 @@ function sumRows(rows,idx){
   return rows.reduce((a,r)=>a+toNum(r[idx]),0);
 }
 function money(v){return "$"+toNum(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});}
+/* =====================================================================
+   DECIMALES ORIGINALES DE APPSHEET (v29.1)
+   ---------------------------------------------------------------------
+   Los totales/subtotales del statement (sumas de varias filas) se siguen
+   mostrando con 2 decimales fijos vía money()/money2() - es lo correcto
+   para un total de dinero.
+   Pero el MONTO de cada transaccion individual (tal como llega en el
+   campo crudo de AppSheet, ej. "1522.567") se venia SIEMPRE redondeando
+   a 2 decimales por el formato fijo de money(). decimalsIn()+moneyD()
+   detectan cuantos decimales trae el campo original y los respetan en
+   las tablas de detalle (Ventas, Cancelaciones, Cheques, Pagos), en vez
+   de truncar/redondear la precision que mando AppSheet.
+   ===================================================================== */
+function decimalsIn(raw){
+  const s=(raw==null?'':(''+raw)).replace(/[^0-9.\-]/g,'');
+  const m=s.match(/\.(\d+)/);
+  return m ? Math.min(m[1].length,6) : 0;
+}
+function moneyD(v,decimals){
+  const d=Math.max(2,decimals||0); // nunca menos de 2, para que siga leyendose como dinero
+  return "$"+toNum(v).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+}
 /* money2: signo menos ANTES del $, CON centavos (v27: antes redondeaba a entero,
    lo que hacia que la tabla no cuadrara al sumar a mano contra bTot).
    Si el valor es 0 devuelve "" (celda en blanco, igual que el statement). */
@@ -339,7 +361,7 @@ function tablaTipoA(rows){
     <td class="name">${nameObs(r[2],r[6])}</td>
     <td class="nw">${esc(cut(r[3],6))}</td>
     <td class="nw">${esc(cut(r[4],5))}</td>
-    <td class="r">${money(montoAbs(r))}</td>
+    <td class="r">${moneyD(montoAbs(r),decimalsIn(r[5]))}</td>
   </tr>`).join("");
   return `<table>
     ${COLS_A}
@@ -374,7 +396,7 @@ function tablaPagos(rows){
     <td class="nw">${esc(cleanDT(r[0]))}</td>
     <td class="name">${nameObs(r[1],r[4])}</td>
     <td class="nw">${esc(cut(r[3],5))}</td>
-    <td class="r">${money(Math.abs(toNum(r[2])))}</td>
+    <td class="r">${moneyD(Math.abs(toNum(r[2])),decimalsIn(r[2]))}</td>
   </tr>`).join("");
   return `<table>
     <colgroup>
