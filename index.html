@@ -25,13 +25,14 @@
   /* ==== STATEMENT VIAMERICAS (tabla superior, nombres del proveedor) ==== */
   .stmt{display:flex;border:1.5px solid #000;margin:0 0 6px;break-inside:avoid;
         -webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .stmt-col{flex:1;border-right:1px solid #000;min-width:0;display:flex;flex-direction:column}
-  .stmt-col:last-child{border-right:none}
+  .stmt-col{flex:1;border-right:1px solid #000;min-width:0;
+            display:grid;grid-template-rows:auto 1fr auto}
+  .stmt-col > table:not(.stmt-total){align-self:start}  .stmt-col:last-child{border-right:none}
   /* v27.1: las 3 columnas tienen distinto numero de filas. El bloque .stmt-total
      se empuja al fondo con margin-top:auto para que los tres "Total" queden
      alineados en la ultima linea del recuadro. */
-  .stmt-total{margin-top:auto}
-  .stmt-h{text-align:center;font-weight:bold;font-size:12px;padding:5px 4px;
+  .stmt-total{margin-top:0}
+ .stmt-h{text-align:center;font-weight:bold;font-size:12px;padding:5px 4px;
           border-bottom:1.5px solid #000;letter-spacing:.3px}
   .stmt-col.bal .stmt-h{color:#8a8a8a}
   .stmt table{width:100%;border-collapse:collapse;margin:0;table-layout:fixed}
