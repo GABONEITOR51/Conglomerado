@@ -51,7 +51,7 @@
   .stmt .hl{background:#dbe7ff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .stmt .divider{border-right:1px solid #000}
   .stmt-note{font-size:9px;font-style:italic;margin:0 0 14px;line-height:1.3}
-/* ==== BANDA DE CUADRE (v30) ==== */
+/* ==== BANDA DE CUADRE (v30.1) ==== */
 .cuadre{border:1.5px solid #d00;margin:0 0 10px;padding:5px 7px;break-inside:avoid}
 .cuadre h3{margin:0 0 3px;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:#d00}
 .cuadre table{width:100%;border-collapse:collapse;margin:0 0 3px;table-layout:fixed}
@@ -116,7 +116,7 @@
 <button class="print-btn" onclick="window.print()">Imprimir / PDF</button>
 <script>
 /* =====================================================================
-   REPORTE DE PROVEEDOR (lite) - v30
+   REPORTE DE PROVEEDOR (lite) - v30.1
    ---------------------------------------------------------------------
    Contrato de datos (compatible con la misma Action de AppSheet):
      #d=HEADER||VENTAS||SALIDAS||CHEQUES||CANCELACIONES||PAGOS
@@ -527,11 +527,11 @@ function statementTable(S,T,balIni,balIniSet,debManual,debSet){
     ? ` <b>Pago de Envíos</b> = ${S.mtPay.n} pay out(s) por ${money(S.mtPay.s)}: efectivo entregado al beneficiario, resta del Total.`
     : ``;
   return `<div class="stmt">${html}</div>
-  <div class="stmt-note">Statement de proveedor (Viamericas) &middot; v30. <b style="color:#d00">Valores en rojo</b> = sin dato en el reporte: editar manualmente. Balance Inicial = saldo final del periodo anterior. Cheques Acreditados y Depósitos/Viasafe son abonos (restan al saldo a depositar). ${notaDeb}${notaPay}</div>`;
+  <div class="stmt-note">Statement de proveedor (Viamericas) &middot; v30.1. <b style="color:#d00">Valores en rojo</b> = sin dato en el reporte: editar manualmente. Balance Inicial = saldo final del periodo anterior. Cheques Acreditados y Depósitos/Viasafe son abonos (restan al saldo a depositar). ${notaDeb}${notaPay}</div>`;
 }
 
 /* =====================================================================
-   BANDA DE CUADRE (v30)
+   BANDA DE CUADRE (v30.1)
    ---------------------------------------------------------------------
    AppSheet manda en HEADER[4..8] los totales calculados con SUM() sobre
    los valores REALES de la hoja, y en las secciones manda fila por fila.
@@ -550,18 +550,36 @@ function sinDecimales(P){
 function bandaCuadre(P,T,H,balIniSet){
   const H_ = i => (H[i]!==undefined && (''+H[i]).trim()!=='') ? toNum(H[i]) : null;
   const filas=[
-    ['Ventas',        H_(4), T.ventas],
-    ['Cheques',       H_(6), T.cheques],
-    ['Cancelaciones', H_(7), T.canc+T.payout],
-    ['Pagos / Depositos', H_(8), T.pagos]
+    ['Ventas',        H_(4), T.ventas,          (P.VENTAS||[]).length],
+    ['Cheques',       H_(6), T.cheques,         (P.CHEQUES||[]).length],
+    ['Cancelaciones', H_(7), T.canc+T.payout,   (P.CANC||[]).length],
+    ['Pagos / Depositos', H_(8), T.pagos,       (P.PAGOS||[]).length]
   ].filter(f=>f[1]!==null);
+  /* v30.1 - Diagnostico de secciones vacias. Distingue los dos casos que se
+     ven identicos en pantalla pero tienen causas opuestas:
+       seccion vacia + total de AppSheet en 0  -> no hay movimientos, todo bien
+       seccion vacia + total de AppSheet > 0   -> el slice o la columna de
+                                                  payload no esta devolviendo nada */
+  const vacias = filas.filter(f=>f[3]===0);
+  const sinDatos = vacias.filter(f=>Math.abs(f[1])<0.005).map(f=>f[0]);
+  const rotas    = vacias.filter(f=>Math.abs(f[1])>=0.005);
   const desc = filas.filter(f=>Math.abs(f[1]-f[2])>=0.005);
   const dec  = sinDecimales(P);
   const avisos=[];
+  if(rotas.length) avisos.push('<b>SECCION VACIA CON DATOS EN APPSHEET:</b> '+
+    rotas.map(f=>f[0]+' (AppSheet reporta '+money(f[1])+', llegaron 0 filas)').join('; ')+
+    '. El total del HEADER no pasa por las columnas de payload, asi que el dato SI existe: '+
+    'revisar el Slice o la columna Payload_* de esa seccion.');
+  if(sinDatos.length===filas.length) avisos.push('<b>Todas las secciones llegaron vacias y AppSheet tambien reporta $0</b>: '+
+    'este periodo no tiene movimientos, o la Action se corrio sobre el registro equivocado. No es un error del reporte.');
+  else if(sinDatos.length) avisos.push('Secciones sin movimientos en el periodo (AppSheet tambien reporta $0, es correcto): <b>'+
+    sinDatos.join(', ')+'</b>.');
   if(!balIniSet) avisos.push('<b>Falta el Balance Inicial</b>: el HEADER llego con '+H.length+
     ' campos y el campo 11 (saldo final del periodo anterior) no viene. Sin el, la columna <b>Balance</b> arranca en cero y el Total NO es el saldo real a depositar.');
   if(dec.sin>0) avisos.push('<b>'+dec.sin+' de '+dec.tot+'</b> montos llegaron SIN decimales (enteros). '+
-    'AppSheet esta convirtiendo el monto a texto con el formato de la columna. En la Action, envolver el monto con <code>TEXT([Monto],"0.00")</code>.');
+    'AppSheet convierte la columna a texto con el formato de SU TIPO. Arreglo: Data &rarr; Columns &rarr; '+
+    'la columna del monto &rarr; Type = <b>Decimal</b> o <b>Price</b>, Decimal digits = <b>2</b>. '+
+    'No hay que tocar la formula del payload.');
   if(desc.length) avisos.push('Las diferencias de arriba son exactamente lo que se pierde al redondear cada fila (y/o filas que no vienen en la seccion).');
   if(!desc.length && !avisos.length) return '';
   const trs=filas.map(f=>{
@@ -632,7 +650,7 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v30</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v30.1</div>
   ${bandaCuadre(P,T,H,balIniSet)}
   ${statementTable(S,T,balIni,balIniSet,debManual,debSet)}
   <div class="groups">
