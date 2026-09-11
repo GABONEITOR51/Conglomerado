@@ -286,12 +286,14 @@ function esTCD(fp){
 function ejeProducto(r){ return /bill/.test((''+(r[7]||'')).toLowerCase()) ? 'bill' : 'mt'; }
 /* Eje LIQUIDACION: como se liquida con el proveedor. */
 function ejeLiquid(r){ return esTCD(r[4]) ? 'card' : 'cash'; }
-/* v28 - Eje TIPO DE BAJA: [TipoCancel] (idx 8).
+/* v28.1 - Eje TIPO DE BAJA: [TipoCancel] (idx 8) y NADA MAS.
    Tolera "PAY_OUT", "PAY OUT", "PAYOUT", "pay-out", con o sin espacios.
-   Si idx 8 viene vacio (registros anteriores a la clasificacion) revisa
-   tambien el campo Servicio (idx 3); si tampoco, asume CANCELACION. */
+   Si idx 8 viene vacio se trata como CANCELACION (comportamiento v27).
+   OJO: NO usar el campo Servicio (idx 3) como respaldo. Ahi viene el texto
+   "CANCELACION / PAYOUT" del concepto viejo, y cualquier busqueda de
+   "payout" sobre ese campo manda TODAS las filas a Pago de Envios. */
 function esPayout(r){
-  const t=(''+(r[8]!==undefined&&(''+r[8]).trim()!=='' ? r[8] : (r[3]||''))).toLowerCase();
+  const t=(''+(r[8]||'')).toLowerCase();
   return /pay[\s_-]*out/.test(t);
 }
 /* Monto normalizado: SIEMPRE positivo.
