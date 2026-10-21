@@ -23,15 +23,9 @@
   h1{font-size:14px;margin:0 0 2px;text-transform:uppercase;letter-spacing:.5px}
   .sub{font-size:11px;margin:0 0 10px}
   /* ==== STATEMENT VIAMERICAS (tabla superior, nombres del proveedor) ====
-     v29: las 3 columnas (Envios/Otros/Balance) viven en UN SOLO CSS Grid
-     en vez de 3 tablas independientes. Cada "fila logica" (fila 1, fila 2...
-     fila Total) ocupa la MISMA fila de grid para las 3 columnas, y el grid
-     ajusta automaticamente la altura de esa fila a la celda mas alta de
-     las 3 (por ejemplo si un concepto hace wrap a 2 lineas en una columna).
-     Resultado: el renglon "Total" de las 3 columnas SIEMPRE queda en la
-     misma linea horizontal, pegado justo debajo del ultimo concepto real,
-     sin importar el motor de render (pantalla, impresion o PDF) y sin
-     necesidad de filas de relleno manuales ni de flexbox. */
+     v29: las 3 columnas (Envios/Otros/Balance) viven en UN SOLO CSS Grid.
+     Cada "fila logica" ocupa la MISMA fila de grid para las 3 columnas,
+     asi el renglon "Total" siempre queda alineado. */
   .stmt{
     display:grid;
     grid-template-columns: 1fr 34px 88px  1fr 34px 88px  1fr 88px;
@@ -107,10 +101,10 @@
 <button class="print-btn" onclick="window.print()">Imprimir / PDF</button>
 <script>
 /* =====================================================================
-   REPORTE DE PROVEEDOR (lite) - v30
+   REPORTE DE PROVEEDOR (lite) - v31
    ---------------------------------------------------------------------
-   Contrato de datos (compatible con la misma Action de AppSheet):
-     #d=HEADER||VENTAS||SALIDAS||CHEQUES||CANCELACIONES||PAGOS
+   Contrato de datos (compatible con la Action actual de AppSheet):
+     #d=HEADER||VENTAS||SALIDAS||CHEQUES||CANCELACIONES||PAGOS[||PAYOUT]
      sec sep: ||   fila sep: ~~   campo sep: ^
 
    HEADER: 0 proveedor 1 fechaIni 2 fechaFin 3 logoURL(ignorado)
@@ -121,72 +115,67 @@
 
    VENTAS/SALIDAS/CHEQUES: 0 fecha 1 hora 2 cliente 3 servicio
                            4 formaPago 5 monto 6 observacion 7 tipoEnvio
-   CANC:  igual + 8 tipoCancel  ("CANCELACION" | "PAY_OUT")
-   PAGOS: 0 fecha 1 referencia 2 monto 3 formaPago 4 observacion
+   CANC:   igual + 8 tipoCancel ("Money Trnsf" | "Bill Paymnt" | ... | "PAYOUT")
+   PAGOS:  0 fecha 1 referencia 2 monto 3 formaPago 4 observacion
+   PAYOUT: (seccion 7, OPCIONAL) mismo formato de 9 campos que CANC
 
    =====================================================================
-   NOVEDAD v30 - PRODUCTO "RECARGA"
+   NOVEDAD v31 - PAYOUT COMO PRODUCTO PROPIO (58165L12)
    ---------------------------------------------------------------------
-   El eje PRODUCTO ahora tiene 3 valores: 'mt' | 'bill' | 'rec'.
-     [TipoEnvio] contiene "recarga", "pin" o "top up" -> 'rec'
-   Lineas nuevas (columna Otros Servicios):
-     Recargas / Pin       = VENTAS, producto=rec
-     Recargas Canceladas  = CANC (tipo=CANCELACION), producto=rec
-   Total Otros Servicios = (Biles - Biles Canc) + (Recargas - Recargas Canc)
+   Antes: el pay out era una cancelacion marcada [TipoCancel]="PAY_OUT"
+   (producto 58165L1b) y venia DENTRO de la seccion CANC.
+   Ahora: es su propia categoria [TipoCancel]="PAYOUT" (producto 58165L12).
 
-   ANTES de v30 una recarga caia en 'mt' (todo lo que no era bill era
-   envio), o sea se sumaba a "Envios De Dinero". Eso ya no pasa.
+   Un registro es PAY OUT si cumple CUALQUIERA de:
+     a) viene en la seccion 7 (PAYOUT), o
+     b) viene en CANC con [TipoCancel] = "PAYOUT" (o el legado "PAY_OUT").
+   Las dos fuentes se unen y se DEDUPLICAN por fila completa, para que
+   un mismo registro no se cuente dos veces si llega por ambas vias.
 
-   El invariante TCD se conserva para recargas: una recarga TCD suma en
-   Otros y resta en Creditos (neto 0); su cancelacion resta en Recargas
-   Canceladas y suma en Debitos (neto 0).
+   "Pago de Envios" = TODOS los pay out, SIN filtrar por [TipoEnvio]:
+   como ahora es un producto propio, el pay out es pago de envio por
+   definicion. (Se elimino la alerta de "PAY_OUT huerfano" de v30.)
 
-   PAY_OUT solo tiene sentido para money transfer. Un PAY_OUT con
-   producto bill o rec no cae en ninguna linea del statement: se muestra
-   una ALERTA en rojo en vez de perderlo en silencio.
+   Cancelaciones reales = CANC sin pay out. Cualquier otro valor de
+   [TipoCancel] ("Money Trnsf", "Bill Paymnt", vacio...) es cancelacion.
+
+   Eje PRODUCTO: usa [TipoEnvio] (idx 7); si viene vacio, usa
+   [TipoCancel] (idx 8) como respaldo.
+     contiene "bill"                    -> 'bill'
+     contiene "recarga" / "pin" / "top up" -> 'rec'
+     cualquier otro ("Money Trnsf"...)  -> 'mt'
 
    =====================================================================
-   v28 - SEPARACION CANCELACION / PAY_OUT
+   MODELO CANONICO (v27, validado contra statement real de julio 2026)
    ---------------------------------------------------------------------
-     TipoCancel = "CANCELACION" -> linea "... Cancelados"
-     TipoCancel = "PAY_OUT"     -> linea "Pago de Envios"
-   Filas SIN [TipoCancel] se tratan como CANCELACION.
-   Los Debitos TCD se calculan SOLO sobre las cancelaciones reales.
-
-   =====================================================================
-   MODELO CANONICO (v27) - VALIDADO CONTRA EL STATEMENT REAL DE JULIO 2026
-   ---------------------------------------------------------------------
-     eje PRODUCTO     : 'mt' | 'bill' | 'rec'      <- [TipoEnvio] idx 7
-     eje LIQUIDACION  : 'card' (TCD) | 'cash'      <- [FormaPago] idx 4
-     eje SIGNO        : 'alta' (VENTAS) | 'canc'   <- seccion del payload
-
      Money Transfers            = VENTAS, producto=mt
-     Money Transfers - Canceled = CANC (CANCELACION), producto=mt
-     Pago de Envios             = CANC (PAY_OUT),     producto=mt
+     Money Transfers - Canceled = CANC real, producto=mt
+     Pago de Envios             = PAYOUT (todos)                <- v31
      Bill Payment               = VENTAS, producto=bill
-     Bill Payment Canceled      = CANC (CANCELACION), producto=bill
-     Recargas / Pin             = VENTAS, producto=rec          <- v30
-     Recargas Canceladas        = CANC (CANCELACION), producto=rec  <- v30
-     Credits  (se RESTA)        = VENTAS, liquidacion=card
-     Debits   (se SUMA)         = CANC (CANCELACION), liquidacion=card
+     Bill Payment Canceled      = CANC real, producto=bill
+     Recargas / Pin             = VENTAS, producto=rec
+     Recargas Canceladas        = CANC real, producto=rec
+     Credits  (se RESTA)        = VENTAS, liquidacion=card (TCD)
+     Debits   (se SUMA)         = CANC real, liquidacion=card (TCD)
 
    INVARIANTE: toda transaccion TCD tiene efecto NETO CERO sobre el saldo.
+   Los pay out NUNCA generan debito (se calculan fuera de CANC real).
 
    PRUEBA (statement Viamericas 07/01/2026 - 07/09/2026):
-     Balance: 4,896.52 + 31,412.06 + 105.46 - 1,159.54 - 17,800.00
-              + 200.00 - 3,145.00 = 14,509.50 = "Total To Deposit" [OK]
+     4,896.52 + 31,412.06 + 105.46 - 1,159.54 - 17,800.00
+     + 200.00 - 3,145.00 = 14,509.50 = "Total To Deposit" [OK]
 
    REQUISITOS DE DATOS (criticos):
-     1. El campo monto (idx 5) debe ser el TOTAL cobrado (envio + fee + taxes).
+     1. El monto (idx 5) debe ser el TOTAL cobrado (envio + fee + taxes).
      2. HEADER[11] es SOLO para ajustes que NO son cancelaciones TCD.
    ===================================================================== */
 const SEC='||', REC='~~', F='^';
 const DEMO_H = ["VIAMERICAS","1/7/2026","9/7/2026","","0","0","0","0","0","805 MultiServices","4896.52",""];
 const DEMO_VENTAS=[
-  ["7/3/2026","10:12 AM","MARTINEZ SAUL","ENVIO/","TCD","400","tx 1674","Money Transfer"],
-  ["7/4/2026","11:03 AM","FRANCISCO JOSE","ENVIO/","TCD","210","tx 1683","Money Transfer"],
-  ["7/8/2026","2:41 PM","VICENTE TAPIA","ENVIO/","TCD","1522.50","tx 1698","Money Transfer"],
-  ["7/8/2026","4:02 PM","CORDOVA OSCAR","ENVIO/","TCD","1012.50","tx 1709","Money Transfer"],
+  ["7/3/2026","10:12 AM","MARTINEZ SAUL","ENVIO/","TCD","400","tx 1674","Money Trnsf"],
+  ["7/4/2026","11:03 AM","FRANCISCO JOSE","ENVIO/","TCD","210","tx 1683","Money Trnsf"],
+  ["7/8/2026","2:41 PM","VICENTE TAPIA","ENVIO/","TCD","1522.50","tx 1698","Money Trnsf"],
+  ["7/8/2026","4:02 PM","CORDOVA OSCAR","ENVIO/","TCD","1012.50","tx 1709","Money Trnsf"],
   ["7/1/2026","9:30 AM","JESUS GONZALEZ ROMERO","ENVIO/","EFECTIVO","82.50","PG&E","Bill Paymnt"],
   ["7/3/2026","1:15 PM","MINERVA CARRILLO ESPINO","ENVIO/","EFECTIVO","22.96","TJX","Bill Paymnt"],
   ["7/5/2026","12:10 PM","LUIS PEREZ","ENVIO/","EFECTIVO","20","Telcel","Recarga"],
@@ -198,18 +187,21 @@ const DEMO_CHEQUES=[
   ["7/7/2026","","CP - DEPOSIT VC2","CHEQUE","EFECTIVO","151.07",""]
 ];
 const DEMO_CANC=[
-  ["7/1/2026","10:05 AM","FRANCISCO JOSE","CANCELACION","TCD","200","cancel tx 1652 (venta de JUNIO)","Money Transfer","CANCELACION"],
-  ["7/4/2026","3:20 PM","GABRIEL HERNANDEZ","CANCELACION","EFECTIVO","111","cancel tx 1666","Money Transfer","CANCELACION"],
-  ["7/8/2026","5:44 PM","NICOLAS CARRILLO","CANCELACION","EFECTIVO","2040","cancel tx 1667","Money Transfer","CANCELACION"],
-  ["7/6/2026","11:20 AM","ROSA MARIA JIMENEZ","PAYOUT","EFECTIVO","650","payout tx 1690","Money Transfer","PAY_OUT"],
-  ["7/9/2026","1:05 PM","ANTONIO LOPEZ LOPEZ","PAYOUT","EFECTIVO","300","payout tx 1712","Money Transfer","PAY_OUT"],
-  ["7/5/2026","12:30 PM","LUIS PEREZ","CANCELACION","EFECTIVO","20","cancel recarga Telcel","Recarga","CANCELACION"]
+  ["7/1/2026","10:05 AM","FRANCISCO JOSE","CANCELACION","TCD","200","cancel tx 1652 (venta de JUNIO)","Money Trnsf","Money Trnsf"],
+  ["7/4/2026","3:20 PM","GABRIEL HERNANDEZ","CANCELACION","EFECTIVO","111","cancel tx 1666","Money Trnsf","Money Trnsf"],
+  ["7/8/2026","5:44 PM","NICOLAS CARRILLO","CANCELACION","EFECTIVO","2040","cancel tx 1667","Money Trnsf","Money Trnsf"],
+  ["7/5/2026","12:30 PM","LUIS PEREZ","CANCELACION","EFECTIVO","20","cancel recarga Telcel","Recarga","Recarga"]
 ];
 const DEMO_PAGOS=[
   ["7/1/2026","BAI Deposit Agent - ATM","3600.00","ATM",""],
   ["7/6/2026","BAI Deposit Agent - ATM","3500.00","ATM",""],
   ["7/7/2026","DIRECT BANK ATM","6500.00","ATM",""],
   ["7/8/2026","SMS Deposit Agent - ATM","4200.00","ATM",""]
+];
+/* v31: pay out como seccion propia (producto 58165L12) */
+const DEMO_PAYOUT=[
+  ["7/6/2026","11:20 AM","ROSA MARIA JIMENEZ","PAYOUT","EFECTIVO","650","payout tx 1690","Money Trnsf","PAYOUT"],
+  ["7/9/2026","1:05 PM","ANTONIO LOPEZ LOPEZ","PAYOUT","EFECTIVO","300","payout tx 1712","Money Trnsf","PAYOUT"]
 ];
 function smartDecode(raw){
   let s=raw;
@@ -239,7 +231,8 @@ function readPayload(){
     SALIDAS: splitRows(parts[2]),
     CHEQUES: splitRows(parts[3]),
     CANC: splitRows(parts[4]),
-    PAGOS: splitRows(parts[5])
+    PAGOS: splitRows(parts[5]),
+    PAYOUT: splitRows(parts[6])   /* v31: opcional */
   };
 }
 function toNum(v){
@@ -252,7 +245,6 @@ function sumRows(rows,idx){
   return rows.reduce((a,r)=>a+toNum(r[idx]),0);
 }
 function money(v){return "$"+toNum(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});}
-/* Decimales originales de AppSheet en montos individuales (v29.1). */
 function decimalsIn(raw){
   const s=(raw==null?'':(''+raw)).replace(/[^0-9.\-]/g,'');
   const m=s.match(/\.(\d+)/);
@@ -262,7 +254,6 @@ function moneyD(v,decimals){
   const d=Math.max(2,decimals||0);
   return "$"+toNum(v).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
 }
-/* money2: signo menos ANTES del $, con centavos; 0 -> celda en blanco. */
 function money2(v){
   const n=toNum(v);
   if(Math.abs(n)<0.005) return "";
@@ -285,27 +276,38 @@ function esTCD(fp){
   fp=(fp==null?'':(''+fp)).toLowerCase();
   return /\btcd\b|pago directo cliente|cliente\s*directo|directo a compa/.test(fp);
 }
-/* Eje PRODUCTO: usa SOLO [TipoEnvio] (idx 7). [Servicio] (idx 3) llega
-   como "ENVIO/" para todo, no sirve para distinguir.
-   v30: 'rec' para recargas. Orden: bill -> rec -> mt (default). */
+/* Eje PRODUCTO: [TipoEnvio] (idx 7); si esta vacio, [TipoCancel] (idx 8).
+   Orden: bill -> rec -> mt (default). */
 function ejeProducto(r){
-  const t=(''+(r[7]||'')).toLowerCase();
+  const te=(''+(r[7]||'')).trim();
+  const t=(te!=='' ? te : (''+(r[8]||''))).toLowerCase();
   if(/bill/.test(t)) return 'bill';
   if(/recarga|\bpin\b|top[\s_-]*up/.test(t)) return 'rec';
   return 'mt';
 }
 function ejeLiquid(r){ return esTCD(r[4]) ? 'card' : 'cash'; }
-/* Eje TIPO DE BAJA: [TipoCancel] (idx 8) y nada mas. Vacio = CANCELACION. */
+/* Pay out por etiqueta: "PAYOUT" (v31) o el legado "PAY_OUT". */
 function esPayout(r){
   const t=(''+(r[8]||'')).toLowerCase();
   return /pay[\s_-]*out/.test(t);
 }
 function montoAbs(r){ return Math.abs(toNum(r[5])); }
-/* Agregador generico por ejes. prod/liq = null -> no filtra por ese eje. */
 function agrupa(rows,prod,liq){
   const s=(rows||[]).filter(r =>
     (!prod || ejeProducto(r)===prod) && (!liq || ejeLiquid(r)===liq));
   return { n:s.length, s:s.reduce((a,r)=>a+montoAbs(r),0), rows:s };
+}
+/* v31: une listas sin repetir filas identicas (misma fila completa). */
+function unirSinDuplicar(){
+  const vistos=new Set(), out=[];
+  for(const lista of arguments){
+    for(const r of (lista||[])){
+      const k=r.map(x=>(''+(x==null?'':x)).trim()).join('^');
+      if(vistos.has(k)) continue;
+      vistos.add(k); out.push(r);
+    }
+  }
+  return out;
 }
 
 /* ---- Clasificadores de presentacion (secciones de detalle) ---- */
@@ -417,7 +419,7 @@ function statementTable(S,T,balIni,balIniSet,debManual,debSet){
   /* ---- Columna 1: Envios De Dinero ---- */
   const subN=S.mtAlta.n-S.mtCanc.n, subA=S.mtAlta.s-S.mtCanc.s;
   const totN=subN-S.mtPay.n,        totA=subA-S.mtPay.s;
-  /* ---- Columna 2: Otros Servicios (v30: biles + recargas) ---- */
+  /* ---- Columna 2: Otros Servicios (biles + recargas) ---- */
   const otrN=(S.bilAlta.n-S.bilCanc.n)+(S.recAlta.n-S.recCanc.n);
   const otrA=(S.bilAlta.s-S.bilCanc.s)+(S.recAlta.s-S.recCanc.s);
   /* ---- Columna 3: Balance ---- */
@@ -480,13 +482,13 @@ function statementTable(S,T,balIni,balIniSet,debManual,debSet){
   const notaPay = S.mtPay.n>0
     ? ` <b>Pago de Envíos</b> = ${S.mtPay.n} pay out(s) por ${money(S.mtPay.s)}: efectivo entregado al beneficiario, resta del Total.`
     : ``;
-  /* v30: PAY_OUT de bill/recarga no cae en ninguna linea -> alerta visible */
-  const warn = S.payHuerf.n>0
-    ? `<div class="stmt-warn">ALERTA: ${S.payHuerf.n} registro(s) PAY_OUT con TipoEnvio que no es Money Transfer (${money(S.payHuerf.s)}). No se suman en ninguna línea del statement: revisa [TipoCancel] o [TipoEnvio] en AppSheet.</div>`
+  /* v31: un pay out con forma de pago TCD no tiene sentido contable */
+  const warn = S.payTCD.n>0
+    ? `<div class="stmt-warn">ALERTA: ${S.payTCD.n} pay out(s) con forma de pago TCD (${money(S.payTCD.s)}). Se restan en "Pago de Envíos" pero no generan débito: revisa [FormaPago] en AppSheet.</div>`
     : ``;
   return `<div class="stmt">${html}</div>
   ${warn}
-  <div class="stmt-note">Statement de proveedor (Viamericas) &middot; v30. <b style="color:#d00">Valores en rojo</b> = sin dato en el reporte: editar manualmente. Balance Inicial = saldo final del periodo anterior. Cheques Acreditados y Depósitos/Viasafe son abonos (restan al saldo a depositar). ${notaDeb}${notaPay}</div>`;
+  <div class="stmt-note">Statement de proveedor (Viamericas) &middot; v31. <b style="color:#d00">Valores en rojo</b> = sin dato en el reporte: editar manualmente. Balance Inicial = saldo final del periodo anterior. Cheques Acreditados y Depósitos/Viasafe son abonos (restan al saldo a depositar). ${notaDeb}${notaPay}</div>`;
 }
 
 /* ===================================================================== */
@@ -505,23 +507,23 @@ function fileProv(s){
 function render(P){
   const H=P.H, g=i=>H[i]!==undefined?H[i]:"";
 
-  const CANC_PAY  = (P.CANC||[]).filter(r=>  esPayout(r));
-  const CANC_REAL = (P.CANC||[]).filter(r=> !esPayout(r));
+  /* v31: PAYOUT = seccion propia (todas sus filas) + filas de CANC
+     etiquetadas PAYOUT/PAY_OUT, sin duplicar. */
+  const CANC_PAY  = unirSinDuplicar(P.PAYOUT||[], (P.CANC||[]).filter(r=>esPayout(r)));
+  const CANC_REAL = (P.CANC||[]).filter(r=>!esPayout(r));
 
   const S={
     mtAlta : agrupa(P.VENTAS, 'mt',  null),
     mtCanc : agrupa(CANC_REAL,'mt',  null),
-    mtPay  : agrupa(CANC_PAY, 'mt',  null),
+    mtPay  : agrupa(CANC_PAY,  null, null),   // v31: todos los pay out
     bilAlta: agrupa(P.VENTAS, 'bill',null),
     bilCanc: agrupa(CANC_REAL,'bill',null),
-    recAlta: agrupa(P.VENTAS, 'rec', null),   // v30: Recargas / Pin
-    recCanc: agrupa(CANC_REAL,'rec', null),   // v30: Recargas Canceladas
+    recAlta: agrupa(P.VENTAS, 'rec', null),
+    recCanc: agrupa(CANC_REAL,'rec', null),
     credits: agrupa(P.VENTAS,  null,'card'),
-    debits : agrupa(CANC_REAL, null,'card')
+    debits : agrupa(CANC_REAL, null,'card'),
+    payTCD : agrupa(CANC_PAY,  null,'card')   // v31: solo para alerta
   };
-  /* v30: PAY_OUT que no es money transfer (no entra a ninguna linea) */
-  const huerf = CANC_PAY.filter(r=>ejeProducto(r)!=='mt');
-  S.payHuerf = { n:huerf.length, s:sumAbs(huerf), rows:huerf };
 
   const T={
     ventas:    sumAbs(P.VENTAS),
@@ -532,7 +534,7 @@ function render(P){
     salidas:   sumAbs(P.SALIDAS),
     cheques:   sumAbs(P.CHEQUES),
     canc:      sumAbs(CANC_REAL),
-    payout:    sumAbs(CANC_PAY),
+    payout:    S.mtPay.s,
     cancTar:   S.debits.s,
     cancOtra:  sumAbs(CANC_REAL.filter(r=>cancTipo(r)==='otra')),
     pagos:     (P.PAGOS||[]).reduce((a,r)=>a+Math.abs(toNum(r[2])),0)
@@ -546,7 +548,7 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v30</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v31</div>
   ${statementTable(S,T,balIni,balIniSet,debManual,debSet)}
   <div class="groups">
     <div class="grupo">
@@ -568,7 +570,7 @@ function render(P){
     <div class="grupo">
       <div class="ghdr"><span>Pagos realizados &middot; Depositos (&minus;)</span><span class="gt">${money(T.pagos)}</span></div>
     </div>
-    <div class="leyenda">(+) Entradas: suman &middot; (&minus;) Abonos/Liquidaciones: reducen el saldo a depositar. <b>Cheques acreditados</b> = "Credited Checks": es un abono, <b>no</b> un ingreso. Toda transaccion <b>TCD</b> tiene efecto neto CERO: al alta se resta como Credito, al cancelarse se suma como Debito. <b>Pago de envios</b> = efectivo entregado al beneficiario: resta del Total de envios, no genera debito.</div>
+    <div class="leyenda">(+) Entradas: suman &middot; (&minus;) Abonos/Liquidaciones: reducen el saldo a depositar. <b>Cheques acreditados</b> = "Credited Checks": es un abono, <b>no</b> un ingreso. Toda transaccion <b>TCD</b> tiene efecto neto CERO: al alta se resta como Credito, al cancelarse se suma como Debito. <b>Pago de envios</b> = efectivo entregado al beneficiario (producto PAYOUT): resta del Total de envios, no genera debito.</div>
   </div>
   <div class="sec">
     <h2><span>Cancelaciones <span class="cnt">(${CANC_REAL.length} mov.)</span></span><span class="tot">${money(T.canc)}</span></h2>
@@ -595,7 +597,7 @@ function render(P){
 (function(){
   const p=readPayload();
   if(p){ render(p); }
-  else { render({H:DEMO_H,VENTAS:DEMO_VENTAS,SALIDAS:DEMO_SALIDAS,CHEQUES:DEMO_CHEQUES,CANC:DEMO_CANC,PAGOS:DEMO_PAGOS}); }
+  else { render({H:DEMO_H,VENTAS:DEMO_VENTAS,SALIDAS:DEMO_SALIDAS,CHEQUES:DEMO_CHEQUES,CANC:DEMO_CANC,PAGOS:DEMO_PAGOS,PAYOUT:DEMO_PAYOUT}); }
   if(new URLSearchParams(location.search).get("p")==="1"){ setTimeout(()=>window.print(),400); }
 })();
 window.addEventListener("hashchange",()=>{const p=readPayload(); if(p) render(p);});
