@@ -286,10 +286,14 @@ function ejeProducto(r){
   return 'mt';
 }
 function ejeLiquid(r){ return esTCD(r[4]) ? 'card' : 'cash'; }
-/* Pay out por etiqueta: "PAYOUT" (v31) o el legado "PAY_OUT". */
+/* Pay out (v31.1): se detecta por CUALQUIERA de dos campos:
+     idx 3 [DescripcionProducto] = "PAYOUT"  (producto 58165L12, estructural)
+     idx 8 [TipoCancel]          = "PAYOUT" o el legado "PAY_OUT"
+   Asi funciona aunque el payload no traiga [TipoCancel]. */
 function esPayout(r){
+  const d=(''+(r[3]||'')).trim().toLowerCase();
   const t=(''+(r[8]||'')).toLowerCase();
-  return /pay[\s_-]*out/.test(t);
+  return /^pay[\s_-]*out$/.test(d) || /pay[\s_-]*out/.test(t);
 }
 function montoAbs(r){ return Math.abs(toNum(r[5])); }
 function agrupa(rows,prod,liq){
@@ -488,7 +492,7 @@ function statementTable(S,T,balIni,balIniSet,debManual,debSet){
     : ``;
   return `<div class="stmt">${html}</div>
   ${warn}
-  <div class="stmt-note">Statement de proveedor (Viamericas) &middot; v31. <b style="color:#d00">Valores en rojo</b> = sin dato en el reporte: editar manualmente. Balance Inicial = saldo final del periodo anterior. Cheques Acreditados y Depósitos/Viasafe son abonos (restan al saldo a depositar). ${notaDeb}${notaPay}</div>`;
+  <div class="stmt-note">Statement de proveedor (Viamericas) &middot; v31.1. <b style="color:#d00">Valores en rojo</b> = sin dato en el reporte: editar manualmente. Balance Inicial = saldo final del periodo anterior. Cheques Acreditados y Depósitos/Viasafe son abonos (restan al saldo a depositar). ${notaDeb}${notaPay}</div>`;
 }
 
 /* ===================================================================== */
@@ -548,7 +552,7 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v31</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v31<middot; v31.1</div>
   ${statementTable(S,T,balIni,balIniSet,debManual,debSet)}
   <div class="groups">
     <div class="grupo">
@@ -594,8 +598,35 @@ function render(P){
   </div>
   `;
 }
+/* ---------------- diagnostico (URL ...?dbg=1#d=...) ---------------- */
+function showDebug(p){
+  if(new URLSearchParams(location.search).get("dbg")!=="1") return;
+  const box=document.createElement("pre");
+  box.style.cssText="white-space:pre-wrap;font:11px/1.4 monospace;background:#1f2933;color:#d6e2f0;"+
+    "padding:12px 14px;margin:14px auto;max-width:8.5in;border-radius:8px;overflow:auto";
+  if(!p){ box.textContent="DIAGNOSTICO: no llego #d= (se muestra el DEMO)."; document.body.appendChild(box); return; }
+  const secs=[["VENTAS",p.VENTAS,8],["SALIDAS",p.SALIDAS,8],["CHEQUES",p.CHEQUES,8],
+              ["CANC",p.CANC,9],["PAGOS",p.PAGOS,5],["PAYOUT (sec 7)",p.PAYOUT,9]];
+  let t="DIAGNOSTICO v31.1\nHEADER: "+p.H.length+" campos\n\n";
+  for(const [n,rows,esp] of secs){
+    t+=n+": "+rows.length+" filas";
+    if(rows.length){
+      const r=rows[0];
+      t+=" | 1a fila: "+r.length+" campos"+(r.length<esp?"  <-- esperaba "+esp:"")+
+         "\n   ["+r.map((x,i)=>i+":"+(x===""?"·":x)).join(" | ")+"]";
+    }
+    t+="\n";
+  }
+  const pc=(p.CANC||[]).filter(esPayout).length;
+  t+="\nPayouts detectados dentro de CANC: "+pc+
+     "\nPayouts en seccion 7: "+(p.PAYOUT||[]).length+
+     "\n\nSi ambos son 0, los payouts NO vienen en el payload: el problema esta en el slice o en la Action, no en este HTML.";
+  box.textContent=t;
+  document.body.appendChild(box);
+}
 (function(){
   const p=readPayload();
+  showDebug(p);
   if(p){ render(p); }
   else { render({H:DEMO_H,VENTAS:DEMO_VENTAS,SALIDAS:DEMO_SALIDAS,CHEQUES:DEMO_CHEQUES,CANC:DEMO_CANC,PAGOS:DEMO_PAGOS,PAYOUT:DEMO_PAYOUT}); }
   if(new URLSearchParams(location.search).get("p")==="1"){ setTimeout(()=>window.print(),400); }
