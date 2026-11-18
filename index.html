@@ -49,6 +49,24 @@
   .vbox td.red{color:#d00}
   .stmt-note{font-size:9px;font-style:italic;margin:0 0 14px;line-height:1.3;font-family:"Courier New",Consolas,monospace}
   .stmt-warn{font-size:10px;font-weight:bold;color:#d00;border:1px solid #d00;padding:3px 6px;margin:0 0 10px}
+  /* v32.1: tablas de detalle con el mismo estilo Viamericas */
+  .vdet{font-family:"Times New Roman",Times,serif;color:#212529;margin:0 0 14px;
+        -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .vsec{display:flex;justify-content:space-between;align-items:baseline;
+        font-size:15px;font-weight:bold;margin:14px 0 6px;padding-bottom:3px;border-bottom:2px solid #f36421}
+  .vsec .amt{color:#075ca6;font-variant-numeric:tabular-nums}
+  .vsec .amt.neg{color:#30652b}
+  .vdet .vbox{margin:0 0 8px;break-inside:auto}
+  .vdet .vbox + .vbox{margin-top:0}
+  .vdet .vbox .vt{display:flex;justify-content:space-between;padding:5px 8px}
+  .vdet .vbox .vt .n{color:#ababab;font-weight:normal}
+  .vdet table{table-layout:fixed}
+  .vdet td{overflow:hidden;text-overflow:ellipsis}
+  .vdet td.name{white-space:normal;word-break:break-word}
+  .vdet td.nw{white-space:nowrap}
+  .vdet td.vacio{font-style:italic;color:#8a8a8a}
+  .vdet tr.b td{background:#f7f7f7;border-top:1px solid #c5c5c5}
+  .vdet .nota{font-size:10px;font-style:italic;color:#555;margin:2px 0 0}
   @media print{.via-row{grid-template-columns:repeat(3,1fr)}}
   /* ===================================================================== */
   .groups{margin:0 0 14px}
@@ -522,7 +540,7 @@ function statementTable(S,T,ctx){
     + r3('Cuenta Temporal',0,0,{sinDato:true});
 
   const html = `<div class="via">
-    <div class="via-head">Total a Depositar: <span class="amt">${viaMoney(totDep)}</span></div>
+    <div class="via-head">805 MultiServices</div>
     <div class="via-dias">Al cierre del ${esc(cleanDT(fechaFin))} &middot; Días de Pago: Lunes, <b>Miércoles</b> y Viernes</div>
     <div class="via-row">
       ${vbox('Total a Depositar',['Concepto','Valor'],fDep,'dep','gris')}
@@ -552,9 +570,97 @@ function statementTable(S,T,ctx){
     : ``);
   return `${html}
   ${warn}
-  <div class="stmt-note">Statement de proveedor (Viamericas) &middot; v32. <b style="color:#d00">Valores en rojo</b> = sin dato en el reporte: editar manualmente. Balance al cierre = saldo final del periodo anterior. Cheques Procesados y Depósitos/Viasafe son abonos (restan al saldo a depositar).${notaDeb}${notaCorte}</div>`;
+  <div class="stmt-note">Statement de proveedor (Viamericas) &middot; v32.1. <b style="color:#d00">Valores en rojo</b> = sin dato en el reporte: editar manualmente. Balance al cierre = saldo final del periodo anterior. Cheques Procesados y Depósitos/Viasafe son abonos (restan al saldo a depositar).${notaDeb}${notaCorte}</div>`;
 }
 
+
+/* =====================================================================
+   v32.1 - DETALLE con formato Viamericas, en el orden del Balance:
+   Envios De Dinero > Otros Servicios > Cheques Procesados >
+   Depositos / Viasafe > Otros Debitos > Otros Creditos
+   Signos igual que el proveedor: lo que resta va en verde con $-.
+   ===================================================================== */
+function fpCorta(fp){
+  if(esTCD(fp)) return 'TCD';
+  const t=stripQuote(fp).toUpperCase();
+  if(/^EFECTIVO/.test(t)) return 'EF';
+  if(/^ZELLE/.test(t)) return 'ZE';
+  return t.slice(0,5);
+}
+const COLS_V=`<colgroup><col style="width:17%"><col style="width:50%"><col style="width:11%"><col style="width:8%"><col style="width:14%"></colgroup>`;
+const COLS_P=`<colgroup><col style="width:17%"><col style="width:61%"><col style="width:8%"><col style="width:14%"></colgroup>`;
+/* signo: +1 se muestra positivo, -1 se muestra como $- (verde) */
+function vTabla(titulo,rows,signo,nota){
+  const tot=sumAbs(rows)*signo;
+  const body = rows.length
+    ? rows.map(r=>`<tr>
+        <td class="k nw">${esc(cleanDT(r[0]))} ${esc(cleanDT(r[1]))}</td>
+        <td class="name">${nameObs(r[2],r[6])}</td>
+        <td class="nw">${esc(cut(r[3],8))}</td>
+        <td class="nw">${esc(fpCorta(r[4]))}</td>
+        ${vVal(montoAbs(r)*signo)}</tr>`).join('')
+    : `<tr><td class="k vacio" colspan="5">Sin movimientos</td></tr>`;
+  return `<div class="vbox"><div class="vt"><span>${titulo}</span><span class="n">${rows.length} mov.</span></div>
+    <table>${COLS_V}<thead><tr><th>Fecha/Hora</th><th>Cliente / Obs.</th><th>Servicio</th><th>F.Pago</th><th class="r">Valor</th></tr></thead>
+    <tbody>${body}<tr class="b"><td class="k" colspan="3">Total ${titulo}</td><td class="q">${rows.length}</td>${vVal(tot)}</tr></tbody></table>
+    ${nota?`<div class="nota" style="padding:3px 8px">${nota}</div>`:''}</div>`;
+}
+function vTablaPagos(titulo,rows,signo){
+  const tot=(rows||[]).reduce((a,r)=>a+Math.abs(toNum(r[2])),0)*signo;
+  const body = rows.length
+    ? rows.map(r=>`<tr>
+        <td class="k nw">${esc(cleanDT(r[0]))}</td>
+        <td class="name">${nameObs(r[1],r[4])}</td>
+        <td class="nw">${esc(cut(r[3],5))}</td>
+        ${vVal(Math.abs(toNum(r[2]))*signo)}</tr>`).join('')
+    : `<tr><td class="k vacio" colspan="4">Sin depósitos</td></tr>`;
+  return `<div class="vbox"><div class="vt"><span>${titulo}</span><span class="n">${rows.length} mov.</span></div>
+    <table>${COLS_P}<thead><tr><th>Fecha</th><th>Referencia / Obs.</th><th>F.Pago</th><th class="r">Valor</th></tr></thead>
+    <tbody>${body}<tr class="b"><td class="k" colspan="2">Total ${titulo}</td><td class="q">${rows.length}</td>${vVal(tot)}</tr></tbody></table></div>`;
+}
+function vSec(titulo,valor){
+  const n=toNum(valor);
+  return `<div class="vsec"><span>${titulo}</span><span class="amt${n<-0.004?' neg':''}">${viaMoney(valor)}</span></div>`;
+}
+function detalleVia(c){
+  const {P,S,T,CANC_REAL,CANC_PAY,corte,cred,deb}=c;
+  const byProd=(rows,p)=>(rows||[]).filter(r=>ejeProducto(r)===p);
+  const mtV=byProd(P.VENTAS,'mt'), mtC=byProd(CANC_REAL,'mt');
+  const biV=byProd(P.VENTAS,'bill'), biC=byProd(CANC_REAL,'bill');
+  const reV=byProd(P.VENTAS,'rec'),  reC=byProd(CANC_REAL,'rec');
+  const totEnv = sumAbs(mtV)-sumAbs(mtC)-sumAbs(CANC_PAY);
+  const totOtr = sumAbs(biV)+sumAbs(reV)-sumAbs(biC)-sumAbs(reC);
+  const ct = fmtMDY(corte);
+  let h='<div class="vdet">';
+  /* 1. Envios De Dinero */
+  h+=vSec('Envíos De Dinero',totEnv);
+  h+=vTabla('Envíos De Dinero',mtV,1, cred.desde.n||cred.antes.n ? 'Incluye los envíos pagados con tarjeta (TCD); se restan aparte en Otros Créditos / Total a Depositar.' : '');
+  h+=vTabla('Envíos De Dinero - Cancelados',mtC,-1);
+  h+=vTabla('Envíos Domésticos Pagados',CANC_PAY,-1);
+  /* 2. Otros Servicios */
+  h+=vSec('Otros Servicios',totOtr);
+  h+=vTabla('Pago de Biles',biV,1);
+  if(reV.length) h+=vTabla('Recargas / PIN / Pinless',reV,1);
+  if(biC.length) h+=vTabla('Pago de Biles - Cancelados',biC,-1);
+  if(reC.length) h+=vTabla('Recargas Canceladas',reC,-1);
+  /* 3. Cheques Procesados (abono) */
+  h+=vSec('Cheques Procesados',-T.cheques);
+  h+=vTabla('Cheques Procesados',P.CHEQUES||[],1);
+  /* 4. Depositos / Viasafe */
+  h+=vSec('Depósitos / Viasafe',-T.pagos);
+  h+=vTablaPagos('Depósitos / Viasafe',P.PAGOS||[],1);
+  /* 5. Otros Debitos (cancelaciones TCD) */
+  h+=vSec('Otros Débitos',deb.antes.s);
+  h+=vTabla('Otros Débitos (cancelación TCD)',deb.antes.rows,1);
+  if(deb.desde.n) h+=vTabla(`Débitos TCD desde ${ct} (no reflejados por Viamericas)`,deb.desde.rows,1);
+  /* 6. Otros Creditos (ventas TCD) */
+  h+=vSec('Otros Créditos',-cred.antes.s);
+  h+=vTabla('Otros Créditos (cliente directo a compañía)',cred.antes.rows,-1);
+  if(cred.desde.n) h+=vTabla(`Créditos TCD desde ${ct} (no reflejados por Viamericas)`,cred.desde.rows,-1,
+      'Viamericas ya no los muestra en el Balance; se restan en Total a Depositar.');
+  h+=`<div class="nota">Cheques Procesados y Depósitos/Viasafe son abonos: restan al saldo a depositar. Toda transacción TCD tiene efecto neto cero: al alta se resta como Crédito, al cancelarse se suma como Débito. Envíos Domésticos Pagados = efectivo entregado al beneficiario (pay out): resta del total de envíos, no genera débito.</div>`;
+  return h+'</div>';
+}
 /* ===================================================================== */
 function pad2(n){n=parseInt(n,10)||0; return (n<10?'0':'')+n;}
 function fileDate(s){
@@ -619,51 +725,9 @@ function render(P){
   document.title = `${fileProv(g(0))}_${fileDate(g(1))}_${fileDate(g(2))}`;
   document.getElementById("sheet").innerHTML=`
   <h1>Reporte de proveedor: ${esc(g(0)||'PROVEEDOR')}</h1>
-  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v32</div>
+  <div class="sub">805 MultiServices &middot; Periodo: ${esc(cleanDT(g(1)))} a ${esc(cleanDT(g(2)))} &middot; Generado por: ${esc(g(9)||'-')} &middot; v32.1</div>
   ${statementTable(S,T,{balIni,balIniSet,debManual,fechaIni:g(1),fechaFin:g(2),pagos:P.PAGOS,corte,cred,deb})}
-  <div class="groups">
-    <div class="grupo">
-      <div class="ghdr"><span>Entradas &middot; Ventas (+)</span><span class="gt">${money(T.ventas)}</span></div>
-      <div class="grow l1"><span>Envios (Money Transfer)</span><span>${money(T.ventasEnv)}</span></div>
-      <div class="grow l1"><span>Pago de biles (Bill Payment)</span><span>${money(T.ventasBil)}</span></div>
-      <div class="grow l1"><span>Recargas / Pin</span><span>${money(T.ventasRec)}</span></div>
-      ${cred.antes.n>0 ? `<div class="grow l1"><span>Creditos TCD (cliente directo) &rarr; se resta en Balance</span><span>${money(cred.antes.s)}</span></div>` : ``}
-      ${cred.desde.n>0 ? `<div class="grow l1"><span>Creditos TCD desde ${fmtMDY(corte)} &rarr; no reflejados por Viamericas, se restan en Total a Depositar</span><span>${money(cred.desde.s)}</span></div>` : ``}
-    </div>
-    <div class="grupo">
-      <div class="ghdr"><span>Salidas &middot; Abonos (&minus;)</span><span class="gt">${money(T.cheques+T.canc+T.payout)}</span></div>
-      <div class="grow l1"><span>Cheques acreditados</span><span>${money(T.cheques)}</span></div>
-      <div class="grow l1"><span>Cancelaciones</span><span>${money(T.canc)}</span></div>
-      ${T.cancTar>0 ? `
-      <div class="grow l2"><span>Con tarjeta (TCD) &rarr; genera Debito de igual monto</span><span>${money(T.cancTar)}</span></div>
-      <div class="grow l2"><span>Efectivo / otras &rarr; sin debito</span><span>${money(T.cancOtra)}</span></div>` : ``}
-      <div class="grow l1"><span>Pago de envios (pay out)</span><span>${money(T.payout)}</span></div>
-    </div>
-    <div class="grupo">
-      <div class="ghdr"><span>Pagos realizados &middot; Depositos (&minus;)</span><span class="gt">${money(T.pagos)}</span></div>
-    </div>
-    <div class="leyenda">(+) Entradas: suman &middot; (&minus;) Abonos/Liquidaciones: reducen el saldo a depositar. <b>Cheques acreditados</b> = "Credited Checks": es un abono, <b>no</b> un ingreso. Toda transaccion <b>TCD</b> tiene efecto neto CERO: al alta se resta como Credito, al cancelarse se suma como Debito${corte?` (desde el ${fmtMDY(corte)} Viamericas ya no los muestra en el Balance: se restan en Total a Depositar)`:''}. <b>Pago de envios</b> = efectivo entregado al beneficiario (producto PAYOUT): resta del Total de envios, no genera debito.</div>
-  </div>
-  <div class="sec">
-    <h2><span>Cancelaciones <span class="cnt">(${CANC_REAL.length} mov.)</span></span><span class="tot">${money(T.canc)}</span></h2>
-    ${cancBloques(CANC_REAL)}
-  </div>
-  <div class="sec">
-    <h2><span>Pago de envios (pay out) <span class="cnt">(${CANC_PAY.length} mov.)</span></span><span class="tot">${money(T.payout)}</span></h2>
-    ${tablaTipoA(CANC_PAY)}
-  </div>
-  <div class="sec">
-    <h2><span>Cheques acreditados <span class="cnt">(${P.CHEQUES.length} mov. &middot; abono, no es ingreso)</span></span><span class="tot">${money(T.cheques)}</span></h2>
-    ${tablaTipoA(P.CHEQUES)}
-  </div>
-  <div class="sec">
-    <h2><span>Depositos (Pagos realizados) <span class="cnt">(${P.PAGOS.length} mov.)</span></span><span class="tot">${money(T.pagos)}</span></h2>
-    ${tablaPagos(P.PAGOS)}
-  </div>
-  <div class="sec">
-    <h2><span>Ventas <span class="cnt">(${P.VENTAS.length} mov.)</span></span><span class="tot">${money(T.ventas)}</span></h2>
-    ${ventasBloques(P.VENTAS,corte)}
-  </div>
+  ${detalleVia({P,S,T,CANC_REAL,CANC_PAY,corte,cred,deb})}
   `;
 }
 /* ---------------- diagnostico (URL ...?dbg=1#d=...) ---------------- */
@@ -675,7 +739,7 @@ function showDebug(p){
   if(!p){ box.textContent="DIAGNOSTICO: no llego #d= (se muestra el DEMO)."; document.body.appendChild(box); return; }
   const secs=[["VENTAS",p.VENTAS,8],["SALIDAS",p.SALIDAS,8],["CHEQUES",p.CHEQUES,8],
               ["CANC",p.CANC,9],["PAGOS",p.PAGOS,5],["PAYOUT (sec 7)",p.PAYOUT,9]];
-  let t="DIAGNOSTICO v32\nHEADER: "+p.H.length+" campos\n\n";
+  let t="DIAGNOSTICO v32.1\nHEADER: "+p.H.length+" campos\n\n";
   for(const [n,rows,esp] of secs){
     t+=n+": "+rows.length+" filas";
     if(rows.length){
