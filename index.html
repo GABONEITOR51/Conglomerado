@@ -137,7 +137,7 @@
 
    Regla (solo proveedor VIA): TCD con fecha >= VIA_CORTE_TCD
      - NO entra en "Otros Creditos" del Balance (igual que Viamericas)
-     - SI se resta en "Total a Depositar"
+     - la nota del statement da el monto real = Balance Actual - esos TCD
    TCD anteriores al corte: sin cambio (Creditos como siempre), por eso
    los periodos viejos dan exactamente lo mismo que en v31.
    Las cancelaciones TCD (Debitos) posteriores al corte se tratan igual
@@ -501,12 +501,7 @@ function statementTable(S,T,ctx){
   const cierre = diaAnterior(fechaIni);
   const corteTxt = fmtMDY(corte);
 
-  /* Fila 1: Total a Depositar | Balance | Ultimos cuatro depositos */
-  let fDep = r2('Balance Actual (formato proveedor)',bAct);
-  if(cred.desde.n) fDep += r2(`Créditos TCD no reflejados (${cred.desde.n})`,-cred.desde.s);
-  if(deb.desde.n)  fDep += r2(`Débitos TCD no reflejados (${deb.desde.n})`,deb.desde.s);
-  fDep += r2('Total a Depositar',totDep,{b:true,tot:true});
-
+  /* Fila 1: Balance */
   let fBal = r2(`Balance al cierre del ${cierre?fmtMDY(cierre):'periodo anterior'}`,balIni,{red:!balIniSet})
     + r2('Envíos De Dinero',totA)
     + r2('Otros Servicios',otrA)
@@ -515,11 +510,6 @@ function statementTable(S,T,ctx){
     + r2('Otros Débitos',bDeb) + (Math.abs(bDeb)>0.004 ? r2('Otros Ajustes',bDeb,{sub:true}) : '')
     + r2('Otros Créditos',bCred) + (Math.abs(bCred)>0.004 ? r2('Otros Ajustes',bCred,{sub:true}) : '')
     + r2('Balance Actual',bAct,{b:true});
-
-  const ult = (pagos||[]).map(r=>({d:parseMDY(r[0]),r})).filter(x=>x.d)
-    .sort((a,b)=>b.d-a.d).slice(0,4);
-  const fUlt = ult.length ? ult.map(x=>`<tr><td class="k">${fmtMDY(x.d)}</td>${vVal(Math.abs(toNum(x.r[2])))}</tr>`).join('')
-    : `<tr><td class="k" colspan="2"><i>Sin depósitos</i></td></tr>`;
 
   /* Fila 2: Envios De Dinero | Otros Servicios | Cheques Procesados */
   const fEnv = r3('Envíos De Dinero',S.mtAlta.n,S.mtAlta.s)
@@ -543,9 +533,7 @@ function statementTable(S,T,ctx){
     <div class="via-head">805 MultiServices</div>
     <div class="via-dias">Al cierre del ${esc(cleanDT(fechaFin))} &middot; Días de Pago: Lunes, <b>Miércoles</b> y Viernes</div>
     <div class="via-row">
-      ${vbox('Total a Depositar',['Concepto','Valor'],fDep,'dep','gris')}
       ${vbox('Balance',['Concepto','Valor'],fBal,'','gris')}
-      ${vbox('Últimos cuatro depósitos',['Fecha','Valor'],fUlt)}
     </div>
     <div class="via-row">
       <div>${vbox('Envíos De Dinero',['Concepto','Cantidad','Valor'],fEnv)}
@@ -560,7 +548,7 @@ function statementTable(S,T,ctx){
     ? ` <b>Otros Débitos</b> = ${deb.antes.n} cancelación(es) TCD por ${money(deb.antes.s)}${debManual?` + ${money(debManual)} de ajuste manual`:''}: revierten el crédito de la venta original.`
     : ``;
   const notaCorte = hayOcultos
-    ? ` <b>Actualización Viamericas (desde ${corteTxt})</b>: el proveedor ya no muestra los envíos pagados con tarjeta (TCD) en Otros Créditos, pero los sigue sumando en Envíos De Dinero. Por eso el <b>Balance Actual</b> aquí es igual al del proveedor y el <b>Total a Depositar</b> le resta ${money(cred.desde.s)}${deb.desde.n?` y le suma ${money(deb.desde.s)}`:''} de TCD no reflejados (igual que "Total a Depositar Hoy" del portal).`
+    ? ` <b>Actualización Viamericas (desde ${corteTxt})</b>: el proveedor ya no muestra los envíos pagados con tarjeta (TCD) en Otros Créditos, pero los sigue sumando en Envíos De Dinero. Por eso el <b>Balance Actual</b> aquí es igual al del proveedor. Monto real a depositar = Balance Actual ${viaMoney(bAct)} − ${money(cred.desde.s)}${deb.desde.n?` + ${money(deb.desde.s)}`:''} de TCD no reflejados = <b>${viaMoney(totDep)}</b> (equivale a "Total a Depositar Hoy" del portal).`
     : (corte ? ` Corte TCD Viamericas: ${corteTxt} (sin TCD posteriores en el periodo).` : ``);
   const warn = (S.payTCD.n>0
     ? `<div class="stmt-warn">ALERTA: ${S.payTCD.n} pay out(s) con forma de pago TCD (${money(S.payTCD.s)}). Se restan en "Envíos Domésticos Pagados" pero no generan débito: revisa [FormaPago] en AppSheet.</div>`
@@ -634,7 +622,7 @@ function detalleVia(c){
   let h='<div class="vdet">';
   /* 1. Envios De Dinero */
   h+=vSec('Envíos De Dinero',totEnv);
-  h+=vTabla('Envíos De Dinero',mtV,1, cred.desde.n||cred.antes.n ? 'Incluye los envíos pagados con tarjeta (TCD); se restan aparte en Otros Créditos / Total a Depositar.' : '');
+  h+=vTabla('Envíos De Dinero',mtV,1, cred.desde.n||cred.antes.n ? 'Incluye los envíos pagados con tarjeta (TCD); se restan aparte en Otros Créditos (o, desde el corte, del monto real a depositar).' : '');
   h+=vTabla('Envíos De Dinero - Cancelados',mtC,-1);
   h+=vTabla('Envíos Domésticos Pagados',CANC_PAY,-1);
   /* 2. Otros Servicios */
@@ -657,7 +645,7 @@ function detalleVia(c){
   h+=vSec('Otros Créditos',-cred.antes.s);
   h+=vTabla('Otros Créditos (cliente directo a compañía)',cred.antes.rows,-1);
   if(cred.desde.n) h+=vTabla(`Créditos TCD desde ${ct} (no reflejados por Viamericas)`,cred.desde.rows,-1,
-      'Viamericas ya no los muestra en el Balance; se restan en Total a Depositar.');
+      'Viamericas ya no los muestra en el Balance; se restan del Balance Actual para obtener el monto real a depositar.');
   h+=`<div class="nota">Cheques Procesados y Depósitos/Viasafe son abonos: restan al saldo a depositar. Toda transacción TCD tiene efecto neto cero: al alta se resta como Crédito, al cancelarse se suma como Débito. Envíos Domésticos Pagados = efectivo entregado al beneficiario (pay out): resta del total de envíos, no genera débito.</div>`;
   return h+'</div>';
 }
